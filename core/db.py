@@ -38,6 +38,25 @@ def add_channel(channel_id, title, description, color):
     conn.commit()
     conn.close()
 
+def update_channel(channel_id, title = None, color = None):
+    conn = get_connection()
+    if title is not None:
+        conn.execute("UPDATE channels SET title = ? WHERE id = ?", (title, channel_id))
+    if color is not None:
+            conn.execute("UPDATE channels SET color = ? WHERE id = ?", (color, channel_id))
+    conn.commit()
+    conn.close()
+
+def get_channel(channel_id):
+    conn = get_connection()
+    cur = conn.execute(
+        "SELECT id, title, description, color FROM channels WHERE id = ?",
+        (channel_id,)
+    )
+    row = cur.fetchone()
+    conn.close()
+    return row
+
 def add_item(channel_id, text, timestamp):
     conn = get_connection()
     conn.execute(
@@ -70,3 +89,6 @@ if __name__ == "__main__":
     add_channel("deals", "Game Deals", "Free & discounted games", "#4CAF50")
     add_item("deals", "Fake test deal - Portal 2 is free!", "2026-09-25T12:00:00")
     print("Unread count:", get_unread_count("deals"))
+    
+    update_channel("deals", title = "Bargain Hunter")
+    print("After rename: ", get_channel("deals"))
