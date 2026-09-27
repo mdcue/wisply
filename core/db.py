@@ -57,6 +57,13 @@ def get_channel(channel_id):
     conn.close()
     return row
 
+def get_all_channels():
+    conn = get_connection()
+    cur = conn.execute("SELECT id, title, description, color FROM channels")
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
 def add_item(channel_id, text, timestamp):
     conn = get_connection()
     conn.execute(
