@@ -5,6 +5,7 @@ from PyQt6.QtGui import QIcon, QAction
 
 from ui.popup import PopupWindow
 from core import db, startup, scheduler
+from bots import deals
 
 ASSETS_DIR = Path(__file__).parent / "assets"
 ICON_PLAIN = ASSETS_DIR / "icon.png"
@@ -85,8 +86,8 @@ class TrayApp:
             ("free_games", "a new free game is available"),
         ):
             if new_counts[channel_id] > self.old_counts[channel_id]:
-                channel = db.get_channel(channel_id)
-                bot_name = channel[1] if channel else channel_id
+                bot = db.get_bot_for_channel(channel_id)
+                bot_name = bot[1] if bot else channel_id
                 self.tray.showMessage(
                     "wisply",
                     f"{bot_name} {message_suffix}",
@@ -102,8 +103,7 @@ class TrayApp:
 
 if __name__ == "__main__":
     db.init_db()
-    db.add_channel("deals", "Game Deals", "Discounted games", "#4CAF50")
-    db.add_channel("free_games", "Free Games", "Games that are free right now", "#2196F3")
+    deals.register()
     
     tray_app = TrayApp()
     tray_app.run()
