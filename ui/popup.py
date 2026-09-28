@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import(
-    QWidget, QVBoxLayout, QLabel, QPushButton, QScrollArea,
-    QMenu, QInputDialog, QColorDialog
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QScrollArea, QMenu, QInputDialog, QColorDialog
 )
 from PyQt6.QtCore import Qt, QPoint, QTimer
 from PyQt6.QtGui import QGuiApplication, QColor
@@ -10,14 +10,14 @@ from core import db
 #layout info
 POPUP_WIDTH = 300
 SCREEN_MARGIN = 8
-MAX_ITEMS_HEIGHT = 200
+MAX_ITEMS_HEIGHT = 150
 ITEM_ROW_ESTIMATE = 40
 
 #colors
 UNREAD_COLOUR = "#ffffff"
 READ_COLOUR = "#888888"
 
-#styles for parts of the GUI
+#stylizing for the GUI
 TRANSPARENT = "background: transparent;"
 POPUP_STYLE = "PopupWindow { background-color: #1e1e1e; border-radius: 8px; }"
 TITLE_STYLE = "color: white; font-size: 14px; font-weight: bold;"
@@ -25,17 +25,21 @@ HEADER_STYLE = (
     "text-align: left; color: white; padding: 8px; border: none; "
     "border-left: 4px solid {color}; background-color: rgba(255, 255, 255, 15);"
 )
+
+CHANNEL_LABEL_STYLE = "color: {color}; font-size: 12px; font-weight: bold;"
 MARK_BUTTON_STYLE = (
-    "color: white; padding: 6px; border: 1px solid #555; border-radius: 4px; "
+    "color: white; padding: 3px 8px; border: 1px solid #555; border-radius: 4px; "
     "background-color: rgba(255, 255, 255, 10);"
 )
+
 ITEM_STYLE = "color: {colour}; padding: 4px 6px;"
 EMPTY_STYLE = "color: #888; padding: 6px;"
 MENU_STYLE = (
-    "QMenu { background-color: #2a2a2a; color: white; border: 1px solid #555; } "
-    "QMenu::item { padding: 6px 20px; } "
+    "QMenu { background-color: #2a2a2a; color: white; border: 1px solid #555; }"
+    "QMenu::item { padding: 6px 20px; }"
     "QMenu::item:selected { background-color: #444; }"
 )
+
 SCROLL_STYLE = """
     QScrollArea { border: none; background: transparent; }
     QScrollBar:vertical { background: #2a2a2a; width: 10px; border-radius: 5px; margin: 0; }
@@ -45,7 +49,7 @@ SCROLL_STYLE = """
     QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
 """
 
-#small helpers
+#some small helpers
 def clamp(value, low, high):
     """Keep value between low and high"""
     return max(low, min(value, high))
@@ -78,8 +82,8 @@ class PopupWindow(QWidget):
         title = QLabel("wisply")
         title.setStyleSheet(TITLE_STYLE)
         self.layout_.addWidget(title)
-
-    #For the UI
+    
+    #for the UI
     def _clear_rows(self):
         while self.layout_.count() > 1:
             widget = self.layout_.takeAt(1).widget()
@@ -89,39 +93,60 @@ class PopupWindow(QWidget):
     
     def refresh(self):
         self._clear_rows()
-        for channel_id, title, description, color in db.get_all_channels():
-            unread = db.get_unread_count(channel_id)
-            is_open = channel_id == self.expanded_id
-            self.layout_.addWidget(self._build_header(channel_id, title, unread, color, is_open))
+        for bot_id, name, color in db.get_all_bots():
+            unread = db.get_bot_unread(bot_id)
+            is_open = bot_id == self.expanded_id
+            self.layout_.addWidget(self._build_header(bot_id, name, unread, color, is_open))
             if is_open:
-                self.layout_.addWidget(self._build_items_section(channel_id, unread))
+                self.layout_.addWidget(self._build_bot_section(bot_id))
     
-    def _build_header(self, channel_id, title, unread, color, is_open):
+    def _build_header(self, bot_id, name, unread, color, is_open):
         arrow = "▴" if is_open else "▾"
-        header = QPushButton(f"{title}      {unread} unread {arrow}")
+        header = QPushButton(f"{name}   {unread} unread {arrow}")
         header.setCursor(Qt.CursorShape.PointingHandCursor)
         header.setStyleSheet(HEADER_STYLE.format(color = color))
         header.clicked.connect(
-            lambda _checked = False, cid = channel_id : self.toggle_channel(cid)
+            lambda _checked = False, bid = bot_id : self.toggle_bot(bid)
         )
         header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         header.customContextMenuRequested.connect(
-            lambda pos: self._show_header_menu(channel_id, header.mapToGlobal(pos))
+            lambda pos: self._show_header_menu(bot_id, header.mapToGlobal(pos))
         )
         return header
     
-    def _build_items_section(self, channel_id, unread):
-        section, section_layout = make_container(spacing = 6)
-        section_layout.addWidget(self._build_mark_button(channel_id, unread))
-        section_layout.addWidget(self._build_items_list(db.get_items(channel_id)))
+    def _build_bot_section(self, bot_id):
+        section, section_layout = make_container(spacing = 8)
+        for channel_id, title, _description, color in db.get_bot_channels(bot_id):
+            section_layout.addWidget(self._build_channel_block(channel_id, title, color))
         return section
     
+    def _build_channel_block(self, channel_id, title, color):
+        block, block_layout = make_container(spacing = 4)
+        unread = db.get_unread_count(channel_id)
+        
+        top = QWidget()
+        top.setStyleSheet(TRANSPARENT)
+        top_layout = QHBoxLayout(top)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        
+        label = QLabel(f"{title}  .  {unread} unread")
+        label.setStyleSheet(CHANNEL_LABEL_STYLE.format(color = color))
+        top_layout.addWidget(label)
+        top_layout.addStretch()
+        top_layout.addWidget(self._build_mark_button(channel_id, unread))
+        
+        block_layout.addWidget(top)
+        block_layout.addWidget(self._build_items_list(db.get_items(channel_id)))
+        return block
+    
     def _build_mark_button(self, channel_id, unread):
-        button = QPushButton("Mark all as read")
+        button = QPushButton("Mark all read")
         button.setEnabled(unread > 0)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setStyleSheet(MARK_BUTTON_STYLE)
-        button.clicked.connect(lambda _checked = False: self.mark_read_clicked(channel_id))
+        button.clicked.connect(
+            lambda _checked = False: self.mark_read_clicked(channel_id)
+        )
         return button
     
     def _build_items_list(self, items):
@@ -146,8 +171,8 @@ class PopupWindow(QWidget):
         return scroll
     
     #for click inputs
-    def toggle_channel(self, channel_id):
-        self.expanded_id = None if self.expanded_id == channel_id else channel_id
+    def toggle_bot(self, bot_id):
+        self.expanded_id = None if self.expanded_id == bot_id else bot_id
         self.rebuild()
     
     def mark_read_clicked(self, channel_id):
@@ -156,7 +181,8 @@ class PopupWindow(QWidget):
             self.on_unread_changed()
         self.rebuild()
     
-    def _show_header_menu(self, channel_id, global_pos):
+    #renaming and recoloring
+    def _show_header_menu(self, bot_id, global_pos):
         menu = QMenu(self)
         menu.setStyleSheet(MENU_STYLE)
         rename_action = menu.addAction("Rename...")
@@ -164,30 +190,31 @@ class PopupWindow(QWidget):
         
         chosen = menu.exec(global_pos)
         if chosen is rename_action:
-            self._rename_channel(channel_id)
+            self._rename_bot(bot_id)
         elif chosen is color_action:
-            self._recolor_channel(channel_id)
+            self._recolor_bot(bot_id)
     
-    def _rename_channel(self, channel_id):
-        channel = db.get_channel(channel_id)
-        if not channel:
+    def _rename_bot(self, bot_id):
+        bot = db.get_bot(bot_id)
+        if not bot:
             return
-        new_name, ok = QInputDialog.getText(None, "Rename bot", "New name:", text = channel[1])
+        new_name, ok = QInputDialog.getText(None, "Rename bot", "New name:", text = bot[1])
         new_name = new_name.strip()
         if ok and new_name:
-            db.update_channel(channel_id, title = new_name)
+            db.update_bot(bot_id, name = new_name)
         self._reopen()
     
-    def _recolor_channel(self, channel_id):
-        channel = db.get_channel(channel_id)
-        if not channel:
+    def _recolor_bot(self, bot_id):
+        bot = db.get_bot(bot_id)
+        if not bot:
             return
-        chosen = QColorDialog.getColor(QColor(channel[3]), None, "Choose bot color")
+        chosen = QColorDialog.getColor(QColor(bot[2]), None, "Choose bot color")
         if chosen.isValid():
-            db.update_channel(channel_id, color = chosen.name())
+            db.update_bot(bot_id, color = chosen.name())
         self._reopen()
     
     def _reopen(self):
+        #the popup can close when a dialog takes focus, so redraw and bring it back
         self.rebuild()
         self.show()
         self.activateWindow()
