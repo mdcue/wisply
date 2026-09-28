@@ -6,9 +6,7 @@ def main():
     print(f"Welcome back, {acc['name']}!")
     
     db.init_db()
-    db.add_channel("deals", "Game Deals", "Discounted games", "#4CAF50")
-    db.add_channel("free_games", "Free Games", "Games that are free right now", "#2196F3")
-    
+    deals.register()
     deals.fetch()
     
     print(f"You have {db.get_unread_count('deals')} unread deals.")
