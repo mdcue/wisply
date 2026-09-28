@@ -1,8 +1,9 @@
 from PyQt6.QtWidgets import(
-    QWidget, QVBoxLayout, QLabel, QPushButton, QScrollArea
+    QWidget, QVBoxLayout, QLabel, QPushButton, QScrollArea,
+    QMenu, QInputDialog, QColorDialog
 )
 from PyQt6.QtCore import Qt, QPoint, QTimer
-from PyQt6.QtGui import QGuiApplication
+from PyQt6.QtGui import QGuiApplication, QColor
 
 from core import db
 
@@ -30,6 +31,11 @@ MARK_BUTTON_STYLE = (
 )
 ITEM_STYLE = "color: {colour}; padding: 4px 6px;"
 EMPTY_STYLE = "color: #888; padding: 6px;"
+MENU_STYLE = (
+    "QMenu { background-color: #2a2a2a; color: white; border: 1px solid #555; } "
+    "QMenu::item { padding: 6px 20px; } "
+    "QMenu::item:selected { background-color: #444; }"
+)
 SCROLL_STYLE = """
     QScrollArea { border: none; background: transparent; }
     QScrollBar:vertical { background: #2a2a2a; width: 10px; border-radius: 5px; margin: 0; }
@@ -98,6 +104,10 @@ class PopupWindow(QWidget):
         header.clicked.connect(
             lambda _checked = False, cid = channel_id : self.toggle_channel(cid)
         )
+        header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        header.customContextMenuRequested.connect(
+            lambda pos: self._show_header_menu(channel_id, header.mapToGlobal(pos))
+        )
         return header
     
     def _build_items_section(self, channel_id, unread):
@@ -145,6 +155,42 @@ class PopupWindow(QWidget):
         if self.on_unread_changed:
             self.on_unread_changed()
         self.rebuild()
+    
+    def _show_header_menu(self, channel_id, global_pos):
+        menu = QMenu(self)
+        menu.setStyleSheet(MENU_STYLE)
+        rename_action = menu.addAction("Rename...")
+        color_action = menu.addAction("Change color...")
+        
+        chosen = menu.exec(global_pos)
+        if chosen is rename_action:
+            self._rename_channel(channel_id)
+        elif chosen is color_action:
+            self._recolor_channel(channel_id)
+    
+    def _rename_channel(self, channel_id):
+        channel = db.get_channel(channel_id)
+        if not channel:
+            return
+        new_name, ok = QInputDialog.getText(None, "Rename bot", "New name:", text = channel[1])
+        new_name = new_name.strip()
+        if ok and new_name:
+            db.update_channel(channel_id, title = new_name)
+        self._reopen()
+    
+    def _recolor_channel(self, channel_id):
+        channel = db.get_channel(channel_id)
+        if not channel:
+            return
+        chosen = QColorDialog.getColor(QColor(channel[3]), None, "Choose bot color")
+        if chosen.isValid():
+            db.update_channel(channel_id, color = chosen.name())
+        self._reopen()
+    
+    def _reopen(self):
+        self.rebuild()
+        self.show()
+        self.activateWindow()
     
     #position and sizing
     def rebuild(self):
