@@ -48,7 +48,7 @@ class TrayApp:
 
     def toggle_popup(self):
         if self.popup is None:
-            self.popup = PopupWindow()
+            self.popup = PopupWindow(on_unread_changed = self.on_unread_changed)
         
         if self.popup.isVisible():
             self.popup.hide()
@@ -67,6 +67,13 @@ class TrayApp:
         total_unread = db.get_unread_count("deals") + db.get_unread_count("free_games")
         icon_path = ICON_BADGE if total_unread > 0 else ICON_PLAIN
         self.tray.setIcon(QIcon(str(icon_path)))
+
+    def on_unread_changed(self):
+        self.old_counts = {
+            "deals" : db.get_unread_count("deals"),
+            "free_games" : db.get_unread_count("free_games"),
+        }
+        self.update_badge()
 
     def check_for_new_items(self):
         new_counts = {
