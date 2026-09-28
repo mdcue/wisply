@@ -2,6 +2,12 @@ import requests
 from core import db
 
 HEADERS = {"User-Agent": "wisply/1.0 (contact@example.com)"}
+BOT_ID = "game_deals"
+
+def register():
+    db.add_bot(BOT_ID, "Game Deals", "#4CAF50")
+    db.add_channel("deals", "Deals", "Games on sale", "#4CAF50", bot_id = BOT_ID)
+    db.add_channel("free_games", "Free games", "Games that are free right now", "#2196F3", bot_id = BOT_ID)
 
 def get_store_names():
     response = requests.get("https://www.cheapshark.com/api/1.0/stores", headers = HEADERS)
@@ -65,11 +71,9 @@ def fetch():
 
 if __name__ == "__main__":
     db.init_db()
-    db.add_channel("deals", "Game Deals", "Discounted games", "#4CAF50")
-    db.add_channel("free_games", "Free Games", "Games that are free right now", "#2196F3")
+    register()
     
     fetch()
     
     print("Unread deals", db.get_unread_count("deals"))
     print("Unread free games:", db.get_unread_count("free_games"))
-
