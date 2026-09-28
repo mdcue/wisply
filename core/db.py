@@ -83,6 +83,25 @@ def get_unread_count(channel_id):
     conn.close()
     return count
 
+def get_items(channel_id):
+    conn = get_connection()
+    curr = conn.execute(
+        "SELECT id, text, read FROM items WHERE channel_id = ? ORDER BY id DESC",
+        (channel_id,)
+    )
+    rows = curr.fetchall()
+    conn.close()
+    return rows
+
+def mark_all_read(channel_id):
+    conn = get_connection()
+    conn.execute(
+        "UPDATE items SET read = 1 WHERE channel_id = ? AND read = 0",
+        (channel_id,)
+    )
+    conn.commit()
+    conn.close()
+
 def mark_read(item_id):
     conn = get_connection()
     conn.execute(
