@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QScrollArea
 )
-from PyQt6.QtCore import Qt, QPoint
+from PyQt6.QtCore import Qt, QPoint, QTimer
 from PyQt6.QtGui import QGuiApplication
 
 from core import db
@@ -18,7 +18,8 @@ class PopupWindow(QWidget):
         
         self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
         self.setFixedWidth(300)
-        self.setStyleSheet("background-color : #1e1e1e; border-radius : 8px;")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("PopupWindow {background-color : #1e1e1e; border-radius : 8px; }")
         
         self.layout_ = QVBoxLayout(self)
         self.layout_.setContentsMargins(12, 12, 12, 12)
@@ -65,7 +66,7 @@ class PopupWindow(QWidget):
         mark_btn = QPushButton("Mark all read")
         mark_btn.setEnabled(unread > 0)
         mark_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        mark_btn,self.setStyleSheet(
+        mark_btn.setStyleSheet(
             "color : white; padding : 6px; border : 1px solid #555; border-radius : 4px; "
             "background-color : rgba(255, 255, 255, 10);"
         )
@@ -94,7 +95,14 @@ class PopupWindow(QWidget):
         
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea {border : none; background : transparent;}")
+        scroll.setStyleSheet("""
+            QScrollArea {border: none; background: transparent; }
+            QScrollBar:vertical { background: #2a2a2a; width: 10px; border-radius: 5px; margin: 0; }
+            QScrollBar::handle:vertical { background: #888; border-radius: 5px; min-height: 24px; }
+            QScrollBar::handle:vertical:hover { background : #bbb; }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
+        """)
         scroll.setWidget(inner)
         scroll.setFixedHeight(min(MAX_ITEMS_HEIGHT, 40 * max(1, len(items))))
         section_layout.addWidget(scroll)
@@ -113,8 +121,10 @@ class PopupWindow(QWidget):
     
     def rebuild(self):
         self.refresh()
-        self.adjustSize()
+        self.layout_.activate()
+        self.resize(self.width(), self.layout_.sizeHint().height())
         self.place()
+        QTimer.singleShot(0, self.place)
     
     def place(self):
         x, y = self.anchor
