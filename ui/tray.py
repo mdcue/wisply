@@ -3,6 +3,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon, QAction
 
+from ui.popup import PopupWindow
 from core import db, startup, scheduler
 
 ASSETS_DIR = Path(__file__).parent / "assets"
@@ -16,6 +17,8 @@ class TrayApp:
         
         self.tray = QSystemTrayIcon(QIcon(str(ICON_PLAIN)))
         self.tray.setToolTip("wisply")
+        
+        self.popup = None
         
         self.menu = QMenu()
         
@@ -41,7 +44,20 @@ class TrayApp:
 
     def on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
-            print("Tray icon left-clicked - popup window not built yet.")
+            self.toggle_popup()
+
+    def toggle_popup(self):
+        if self.popup is None:
+            self.popup = PopupWindow()
+        
+        if self.popup.isVisible():
+            self.popup.hide()
+            return
+        
+        geo = self.tray.geometry()
+        x = geo.x()
+        y = geo.y()
+        self.popup.show_near(x, y)
 
     def toggle_startup(self):
         startup.toggle()
