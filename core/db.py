@@ -114,8 +114,8 @@ def get_bot_unread(bot_id):
 def add_channel(channel_id, title, description, color, bot_id = None, position = 0):
     conn = get_connection()
     conn.execute(
-    """INSERT INTO channels (id, title, description, color, bot_id)
-    VALUES (?, ?, ?, ?, ?)
+    """INSERT INTO channels (id, title, description, color, bot_id, position)
+    VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
         title = excluded.title,
         description = excluded.description,
