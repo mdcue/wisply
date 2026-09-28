@@ -34,8 +34,10 @@ def fetch_deals(store_names):
         if is_new_deal(deal_id):
             title = deal.get("title")
             price = deal.get("salePrice")
+            normal = deal.get("normalPrice")
+            savings = round(float(deal.get("savings") or 0))
             store = store_names.get(deal.get("storeID"), "Unknown store")
-            text = f"{title} - ${price} ({store})"
+            text = f"{title} - ${price} (was ${normal}, {savings}% off) ({store})"
             db.add_item("deals", text, deal_id)
 
 def fetch_free_games(store_names):
@@ -51,8 +53,9 @@ def fetch_free_games(store_names):
         deal_id = deal.get("dealID", "")
         if is_new_deal(deal_id):
             title = deal.get("title")
+            normal = deal.get("normalPrice")
             store = store_names.get(deal.get("storeID"), "Unknown store")
-            text = f"{title} is free right now! ({store})"
+            text = f"{title} is free right now! (normally ${normal}) ({store})"
             db.add_item("free_games", text, deal_id)
 
 def fetch():
