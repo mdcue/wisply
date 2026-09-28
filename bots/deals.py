@@ -6,8 +6,8 @@ BOT_ID = "game_deals"
 
 def register():
     db.add_bot(BOT_ID, "Game Deals", "#4CAF50")
-    db.add_channel("deals", "Deals", "Games on sale", "#4CAF50", bot_id = BOT_ID)
-    db.add_channel("free_games", "Free games", "Games that are free right now", "#2196F3", bot_id = BOT_ID)
+    db.add_channel("free_games", "Free games", "Games that are free right now", "#5df300", bot_id = BOT_ID, position = 0)
+    db.add_channel("deals", "Deals", "Games on sale", "#2196F3", bot_id = BOT_ID, position = 1)
 
 def get_store_names():
     response = requests.get("https://www.cheapshark.com/api/1.0/stores", headers = HEADERS)
