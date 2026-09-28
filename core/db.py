@@ -39,6 +39,8 @@ def init_db():
     columns = [row[1] for row in conn.execute("PRAGMA table_info(channels)")]
     if "bot_id" not in columns:
         conn.execute("ALTER TABLE channels ADD COLUMN bot_id TEXT")
+    if "position" not in columns:
+        conn.execute("ALTER TABLE channels ADD COLUMN position INTEGER DEFAULT 0")
     conn.commit()
     conn.close()
 
@@ -80,7 +82,7 @@ def update_bot (bot_id, name = None, color = None):
 def get_bot_channels(bot_id):
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, title, description, color FROM channels WHERE bot_id = ? ORDER BY rowid",
+        "SELECT id, title, description, color FROM channels WHERE bot_id = ? ORDER BY position, rowid",
         (bot_id,)
     ).fetchall()
     conn.close()
@@ -109,7 +111,7 @@ def get_bot_unread(bot_id):
     return count
 
 #channels (for bots)
-def add_channel(channel_id, title, description, color, bot_id = None):
+def add_channel(channel_id, title, description, color, bot_id = None, position = 0):
     conn = get_connection()
     conn.execute(
     """INSERT INTO channels (id, title, description, color, bot_id)
@@ -117,8 +119,9 @@ def add_channel(channel_id, title, description, color, bot_id = None):
     ON CONFLICT(id) DO UPDATE SET
         title = excluded.title,
         description = excluded.description,
-        bot_id = COALESCE(excluded.bot_id, channels.bot_id)
-    """,(channel_id, title, description, color, bot_id)
+        bot_id = COALESCE(excluded.bot_id, channels.bot_id),
+        position = excluded.position
+    """,(channel_id, title, description, color, bot_id, position)
     )#COALESCE keeps an existing bot_id when a caller doesn't pass one.
     conn.commit()
     conn.close()
