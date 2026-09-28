@@ -23,9 +23,7 @@ def start(on_complete = None):
 
 if __name__ == "__main__":
     db.init_db()
-    db.add_channel("deals", "Game Deals", "Discounted games", "#4CAF50")
-    db.add_channel("free_games", "Free Games", "Games that are free right now", "#2196F3")
-    
+    deals.register()
     print("Scheduler started - fetching every", INTERVAL_SECONDS, "seconds. Ctrl+C to stop.")
     start()
     
