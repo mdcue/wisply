@@ -8,7 +8,7 @@ def get_connection():
     return sqlite3.connect(DB_PATH)
 
 def init_db():
-    conn = get_connection
+    conn = get_connection()
     #For reference, a bot is the identity (name + color); channels are its feeds
     conn.execute(
     """CREATE TABLE IF NOT EXISTS bots (
@@ -80,7 +80,7 @@ def update_bot (bot_id, name = None, color = None):
 def get_bot_channels(bot_id):
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, title, description FROM channels WHERE bot_id = ? ORDER BY rowid",
+        "SELECT id, title, description, color FROM channels WHERE bot_id = ? ORDER BY rowid",
         (bot_id,)
     ).fetchall()
     conn.close()
@@ -101,7 +101,7 @@ def get_bot_unread(bot_id):
     #total unread across all of a bot's channels
     conn = get_connection()
     count = conn.execute(
-        "SELECT COUNT(*) FROM items JOIN channels ON items.channel_id = channels.id"
+        "SELECT COUNT(*) FROM items JOIN channels ON items.channel_id = channels.id "
         "WHERE channels.bot_id = ? AND items.read = 0",
         (bot_id,)
     ).fetchone()[0]
