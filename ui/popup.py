@@ -3,8 +3,8 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QMenu, QInputDialog, QColorDialog
 )
-from PyQt6.QtCore import Qt, QPoint, QTimer
-from PyQt6.QtGui import QGuiApplication, QColor
+from PyQt6.QtCore import Qt, QPoint, QTimer, QUrl
+from PyQt6.QtGui import QGuiApplication, QColor, QDesktopServices
 
 from core import db
 
@@ -34,6 +34,7 @@ MARK_BUTTON_STYLE = (
 )
 
 ITEM_STYLE = "color: {colour}; padding: 4px 6px;"
+ITEM_HOVER_STYLE = "background-color: rgba(255, 255, 255, 25); border-radius: 4px;"
 EMPTY_STYLE = "color: #888; padding: 6px;"
 MENU_STYLE = (
     "QMenu { background-color: #2a2a2a; color: white; border: 1px solid #555; }"
@@ -63,6 +64,21 @@ def make_container(spacing):
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(spacing)
     return widget, layout
+
+class ItemLabel(QLabel):
+    """A QLabel that highlights on hover and (if it has a url) marks itself read on click."""
+    def __init__(self, base_style):
+        super().__init__()
+        self.base_style = base_style
+        self.setStyleSheet(self.base_style)
+    
+    def enterEvent(self, event):
+        self.setStyleSheet(self.base_style + ITEM_HOVER_STYLE)
+        super().enterEvent(event)
+    
+    def leaveEvent(self, event):
+        self.setStyleSheet(self.base_style)
+        super().leaveEvent(event)
 
 class PopupWindow(QWidget):
     def __init__(self, on_unread_changed = None):
@@ -137,7 +153,7 @@ class PopupWindow(QWidget):
         top_layout.addWidget(self._build_mark_button(channel_id, unread))
         
         block_layout.addWidget(top)
-        block_layout.addWidget(self._build_items_list(db.get_items(channel_id)))
+        block_layout.addWidget(self._build_items_list(channel_id, db.get_items(channel_id)))
         return block
     
     def _build_mark_button(self, channel_id, unread):
@@ -150,7 +166,7 @@ class PopupWindow(QWidget):
         )
         return button
     
-    def _build_items_list(self, items):
+    def _build_items_list(self, channel_id, items):
         inner, inner_layout = make_container(spacing = 4)
         
         if not items:
@@ -158,19 +174,24 @@ class PopupWindow(QWidget):
             empty.setStyleSheet(EMPTY_STYLE)
             inner_layout.addWidget(empty)
         
-        for _item_id, text, read, url in items:
-            label = QLabel()
-            label.setWordWrap(True)
+        for item_id, text, read, url in items:
             colour = READ_COLOUR if read else UNREAD_COLOUR
             safe_text = html.escape(text)
             
             if url:
+                base_style = "padding: 4px 6px"
+                label = ItemLabel(base_style)
+                label.setWordWrap(True)
                 label.setTextFormat(Qt.TextFormat.RichText)
                 label.setText(f'<a href="{url}" style = "color:{colour}; text-decoration:none;">{safe_text}</a>')
-                label.setOpenExternalLinks(True)
-                label.setStyleSheet("padding: 4px 6px;")
+                label.setCursor(Qt.CursorShape.PointingHandCursor)
+                label.linkActivated.connect(
+                    lambda _url, iid =  item_id, cid = channel_id: self._item_clicked(iid, cid, _url)
+                )
             else:
-                label.setStyleSheet(ITEM_STYLE.format(colour = colour))
+                base_style = ITEM_STYLE.format(colour = colour)
+                label = ItemLabel(base_style)
+                label.setWordWrap(True)
                 label.setText(safe_text)
             
             inner_layout.addWidget(label)
@@ -185,6 +206,13 @@ class PopupWindow(QWidget):
     #for click inputs
     def toggle_bot(self, bot_id):
         self.expanded_id = None if self.expanded_id == bot_id else bot_id
+        self.rebuild()
+    
+    def _item_clicked(self, item_id, channel_id, url):
+        db.mark_read(item_id)
+        QDesktopServices.openUrl(QUrl(url))
+        if self.on_unread_changed:
+            self.on_unread_changed()
         self.rebuild()
     
     def mark_read_clicked(self, channel_id):
