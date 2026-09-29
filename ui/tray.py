@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon, QAction
+from PyQt6.QtCore import QObject, pyqtSignal
 
 from ui.popup import PopupWindow
 from core import db, startup, scheduler
@@ -11,9 +12,13 @@ ASSETS_DIR = Path(__file__).parent / "assets"
 ICON_PLAIN = ASSETS_DIR / "icon.png"
 ICON_BADGE = ASSETS_DIR / "icon_badge.png"
 
+class SchedulerSignals(QObject):
+    cycle_complete = pyqtSignal()
 class TrayApp:
     def __init__(self):
         self.app = QApplication(sys.argv)
+        self.signals = SchedulerSignals()
+        self.signals.cycle_complete.connect(self.check_for_new_items)
         self.app.setQuitOnLastWindowClosed(False) #this is for popup closing
         
         self.tray = QSystemTrayIcon(QIcon(str(ICON_PLAIN)))
@@ -96,9 +101,12 @@ class TrayApp:
                 
         self.old_counts = new_counts
         self.update_badge()
+    
+    def _on_cycle_complete(self):
+        self.signals.cycle_complete.emit()
 
     def run(self):
-        scheduler.start(on_complete = self.check_for_new_items)
+        scheduler.start(on_complete = self._on_cycle_complete)
         sys.exit(self.app.exec())
 
 if __name__ == "__main__":
