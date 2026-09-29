@@ -41,6 +41,9 @@ def init_db():
         conn.execute("ALTER TABLE channels ADD COLUMN bot_id TEXT")
     if "position" not in columns:
         conn.execute("ALTER TABLE channels ADD COLUMN position INTEGER DEFAULT 0")
+    item_columns = [row[1] for row in conn.execute("PRAGMA table_info(items)")]
+    if "url" not in item_columns:
+        conn.execute("ALTER TABLE items ADD COLUMN url TEXT")
     conn.commit()
     conn.close()
 
@@ -151,11 +154,11 @@ def get_all_channels():
     return rows
 
 #items for the database
-def add_item(channel_id, text, timestamp):
+def add_item(channel_id, text, timestamp, url = None):
     conn = get_connection()
     conn.execute(
-        "INSERT INTO items (channel_id, text, timestamp) VALUES (?, ?, ?)",
-        (channel_id, text, timestamp)
+        "INSERT INTO items (channel_id, text, timestamp, url) VALUES (?, ?, ?, ?)",
+        (channel_id, text, timestamp, url)
     )
     conn.commit()
     conn.close()
@@ -172,7 +175,7 @@ def get_unread_count(channel_id):
 def get_items(channel_id):
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, text, read FROM items WHERE channel_id = ? ORDER BY id DESC",
+        "SELECT id, text, read, url FROM items WHERE channel_id = ? ORDER BY id DESC",
         (channel_id,)
     ).fetchall()
     conn.close()
