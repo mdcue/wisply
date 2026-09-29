@@ -2,7 +2,7 @@ import threading
 from core import db
 from bots import deals
 
-INTERVAL_SECONDS = 60 * 60
+INTERVAL_SECONDS = 45 * 60
 
 def run_cycle(on_complete = None):
     print("Running fetch cycle...")
