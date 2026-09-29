@@ -44,7 +44,8 @@ def fetch_deals(store_names):
             savings = round(float(deal.get("savings") or 0))
             store = store_names.get(deal.get("storeID"), "Unknown store")
             text = f"{title} - ${price} (was ${normal}, {savings}% off) ({store})"
-            db.add_item("deals", text, deal_id)
+            url = f"https://www.cheapshark.com/redirect?dealID={deal_id}"
+            db.add_item("deals", text, deal_id, url = url)
 
 def fetch_free_games(store_names):
     response = requests.get(
@@ -62,7 +63,8 @@ def fetch_free_games(store_names):
             normal = deal.get("normalPrice")
             store = store_names.get(deal.get("storeID"), "Unknown store")
             text = f"{title} is free right now! (normally ${normal}) ({store})"
-            db.add_item("free_games", text, deal_id)
+            url = f"https://www.cheapshark.com/redirect?dealID={deal_id}"
+            db.add_item("free_games", text, deal_id, url = url)
 
 def fetch():
     store_names = get_store_names()
