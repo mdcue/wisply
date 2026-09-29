@@ -1,3 +1,4 @@
+import html
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QMenu, QInputDialog, QColorDialog
@@ -157,10 +158,21 @@ class PopupWindow(QWidget):
             empty.setStyleSheet(EMPTY_STYLE)
             inner_layout.addWidget(empty)
         
-        for _item_id, text, read in items:
-            label = QLabel(text)
+        for _item_id, text, read, url in items:
+            label = QLabel()
             label.setWordWrap(True)
-            label.setStyleSheet(ITEM_STYLE.format(colour = READ_COLOUR if read else UNREAD_COLOUR))
+            colour = READ_COLOUR if read else UNREAD_COLOUR
+            safe_text = html.escape(text)
+            
+            if url:
+                label.setTextFormat(Qt.TextFormat.RichText)
+                label.setText(f'<a href="{url}" style = "color:{colour}; text-decoration:none;">{safe_text}</a>')
+                label.setOpenExternalLinks(True)
+                label.setStyleSheet("padding: 4px 6px;")
+            else:
+                label.setStyleSheet(ITEM_STYLE.format(colour = colour))
+                label.setText(safe_text)
+            
             inner_layout.addWidget(label)
         
         scroll = QScrollArea()
