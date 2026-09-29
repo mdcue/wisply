@@ -179,7 +179,7 @@ class PopupWindow(QWidget):
             safe_text = html.escape(text)
             
             if url:
-                base_style = "padding: 4px 6px"
+                base_style = "padding: 4px 6px;"
                 label = ItemLabel(base_style)
                 label.setWordWrap(True)
                 label.setTextFormat(Qt.TextFormat.RichText)
