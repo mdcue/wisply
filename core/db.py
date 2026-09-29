@@ -36,6 +36,12 @@ def init_db():
     )
     """)
     
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(bots)")]
+    if "active" not in columns:
+        conn.execute("ALTER TABLE bots ADD COLUMN active INTEGER DEFAULT 1")
+    if "icon_path" not in columns:
+        conn.execute("ALTER TABLE bots ADD COLUMN icon_path TEXT")
+    
     columns = [row[1] for row in conn.execute("PRAGMA table_info(channels)")]
     if "bot_id" not in columns:
         conn.execute("ALTER TABLE channels ADD COLUMN bot_id TEXT")
@@ -48,11 +54,11 @@ def init_db():
     conn.close()
 
 #bots
-def add_bot(bot_id, name, color):
+def add_bot(bot_id, name, color, icon_path = None):
     conn = get_connection()
     conn.execute(
-        "INSERT OR IGNORE INTO bots (id, name, color) VALUES (?, ?, ?)",
-        (bot_id, name, color)
+        "INSERT OR IGNORE INTO bots (id, name, color, icon_path, active) VALUES (?, ?, ?, ?, 1)",
+        (bot_id, name, color, icon_path)
     )
     conn.commit()
     conn.close()
@@ -60,7 +66,7 @@ def add_bot(bot_id, name, color):
 def get_bot(bot_id):
     conn = get_connection()
     row = conn.execute(
-        "SELECT id, name, color FROM bots WHERE id = ?", (bot_id,)
+        "SELECT id, name, color, active, icon_path FROM bots WHERE id = ?", (bot_id,)
     ).fetchone()
     conn.close()
     return row
@@ -68,17 +74,33 @@ def get_bot(bot_id):
 def get_all_bots():
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, name, color FROM bots ORDER BY rowid"
+        "SELECT id, name, color, active, icon_path FROM bots ORDER BY rowid"
     ).fetchall()
     conn.close()
     return rows
 
-def update_bot (bot_id, name = None, color = None):
+def get_active_bots():
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, name, color, active, icon_path FROM bots WHERE active = 1 ORDER BY rowid"
+    ).fetchall()
+    conn.close()
+    return rows
+
+def update_bot (bot_id, name = None, color = None, icon_path = None):
     conn = get_connection()
     if name is not None:
         conn.execute("UPDATE bots SET name = ? WHERE id = ?", (name, bot_id))
     if color is not None:
         conn.execute("UPDATE bots SET color = ? WHERE id = ?", (color, bot_id))
+    if icon_path is not None:
+        conn.execute("UPDATE bots SET icon_path = ? WHERE id = ?", (icon_path, bot_id))
+    conn.commit()
+    conn.close()
+
+def set_bot_active(bot_id, active):
+    conn = get_connection()
+    conn.execute("UPDATE bots SET active = ? WHERE id = ?", (1 if active else 0, bot_id))
     conn.commit()
     conn.close()
 
