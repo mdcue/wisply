@@ -41,6 +41,8 @@ def init_db():
         conn.execute("ALTER TABLE bots ADD COLUMN active INTEGER DEFAULT 1")
     if "icon_path" not in columns:
         conn.execute("ALTER TABLE bots ADD COLUMN icon_path TEXT")
+    if "expression" not in columns:
+        conn.execute("ALTER TABLE bots ADD COLUMN expression TEXT DEFAULT 'smiling'")
     
     columns = [row[1] for row in conn.execute("PRAGMA table_info(channels)")]
     if "bot_id" not in columns:
@@ -66,7 +68,7 @@ def add_bot(bot_id, name, color, icon_path = None):
 def get_bot(bot_id):
     conn = get_connection()
     row = conn.execute(
-        "SELECT id, name, color, active, icon_path FROM bots WHERE id = ?", (bot_id,)
+        "SELECT id, name, color, active, icon_path, expression FROM bots WHERE id = ?", (bot_id,)
     ).fetchone()
     conn.close()
     return row
@@ -74,7 +76,7 @@ def get_bot(bot_id):
 def get_all_bots():
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, name, color, active, icon_path FROM bots ORDER BY rowid"
+        "SELECT id, name, color, active, icon_path, expression FROM bots ORDER BY rowid"
     ).fetchall()
     conn.close()
     return rows
@@ -82,12 +84,12 @@ def get_all_bots():
 def get_active_bots():
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, name, color, active, icon_path FROM bots WHERE active = 1 ORDER BY rowid"
+        "SELECT id, name, color, active, icon_path, expression FROM bots WHERE active = 1 ORDER BY rowid"
     ).fetchall()
     conn.close()
     return rows
 
-def update_bot (bot_id, name = None, color = None, icon_path = None):
+def update_bot (bot_id, name = None, color = None, icon_path = None, expression = None):
     conn = get_connection()
     if name is not None:
         conn.execute("UPDATE bots SET name = ? WHERE id = ?", (name, bot_id))
@@ -95,6 +97,8 @@ def update_bot (bot_id, name = None, color = None, icon_path = None):
         conn.execute("UPDATE bots SET color = ? WHERE id = ?", (color, bot_id))
     if icon_path is not None:
         conn.execute("UPDATE bots SET icon_path = ? WHERE id = ?", (icon_path, bot_id))
+    if expression is not None:
+        conn.execute("UPDATE bots SET expression = ? WHERE id = ?", (expression, bot_id))
     conn.commit()
     conn.close()
 
