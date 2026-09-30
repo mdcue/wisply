@@ -75,14 +75,17 @@ class ItemLabel(QLabel):
         super().leaveEvent(event)
 
 class PopupWindow(QWidget):
-    def __init__(self, on_unread_changed = None, bot_id = None):
+    def __init__(self, on_unread_changed = None, bot_id = None, popup_style = None):
         super().__init__()
         self.on_unread_changed = on_unread_changed
         self.bot_id_filter = bot_id
         self.expanded_id = None
         self.anchor = (0, 0)
         
-        self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        if self.popup_style:
+            self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        else:
+            self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
         self.setFixedWidth(POPUP_WIDTH)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(POPUP_STYLE)
@@ -94,6 +97,11 @@ class PopupWindow(QWidget):
         title = QLabel("wisply")
         title.setStyleSheet(TITLE_STYLE)
         self.layout_.addWidget(title)
+    
+    def focusOutEvent(self, event):
+        if not self.popup_style:
+            self.hide()
+        super().focusOutEvent(event)
     
     def _clear_rows(self):
         while self.layout_.count() > 1:
