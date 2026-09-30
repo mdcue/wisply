@@ -108,6 +108,12 @@ def set_bot_active(bot_id, active):
     conn.commit()
     conn.close()
 
+def is_bot_active(bot_id):
+    conn = get_connection()
+    row = conn.execute("SELECT active FROM bots WHERE id = ?", (bot_id,)).fetchone()
+    conn.close()
+    return bool(row[0]) if row else False
+
 def get_bot_channels(bot_id):
     conn = get_connection()
     rows = conn.execute(
