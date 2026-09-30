@@ -123,7 +123,7 @@ class PopupWindow(QWidget):
         bots = self._bots_to_show()
         
         if not bots:
-            empty = QLabel("No active bots yet. \nOpen the Hub to activate one.")
+            empty = QLabel("No active wisps yet. \nOpen the Hub to activate one.")
             empty.setStyleSheet(EMPTY_STATE_STYLE)
             self.layout_.addWidget(empty)
             return

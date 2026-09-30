@@ -13,7 +13,7 @@ LAUNCHER_STYLE = "LauncherStrip { background-color: #1e1e1e; border-radius: 8px;
 BOT_BUTTON_STYLE = "border: none; border-radius: 8px; background-color: rgba(255, 255, 255, 15);"
 
 class LauncherStrip(QWidget):
-    """A small row of active bots' icon(s), opened from the tray's left-click.
+    """A small row of active wisps' icon(s), opened from the tray's left-click.
     Clicking a bot's icon opens that one bot's own popup."""
     
     def __init__(self, on_unread_changed = None):
