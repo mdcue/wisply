@@ -5,3 +5,5 @@ from bots import deals
 ALL_BOTS = [
     deals,
 ]
+
+BOT_MODULES = {bot.BOT_ID: bot for bot in ALL_BOTS}
