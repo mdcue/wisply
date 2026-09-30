@@ -3,4 +3,5 @@ __pycache__/
 *.pyc
 data.db
 account.json
-.envui/assets/bots/ 
+.env
+ui/assets/bots/
