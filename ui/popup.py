@@ -110,7 +110,7 @@ class PopupWindow(QWidget):
     
     def refresh(self):
         self._clear_rows()
-        for bot_id, name, color in db.get_all_bots():
+        for bot_id, name, color, active, icon_path, expression in db.get_all_bots():
             unread = db.get_bot_unread(bot_id)
             is_open = bot_id == self.expanded_id
             self.layout_.addWidget(self._build_header(bot_id, name, unread, color, is_open))
