@@ -55,7 +55,7 @@ class LauncherStrip(QWidget):
         self.hide()
         popup = self.bot_popups.get(bot_id)
         if popup is None:
-            popup = PopupWindow(on_unread_changed = self.on_unread_changed, bot_id = bot_id)
+            popup = PopupWindow(on_unread_changed = self.on_unread_changed, bot_id = bot_id, popup_style = False)
             self.bot_popups[bot_id] = popup
         x, y = self.anchor
         popup.show_near(x, y)
