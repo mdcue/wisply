@@ -1,13 +1,16 @@
 import requests
 from pathlib import Path
-from core import db
+from core import db, appearance
 
 HEADERS = {"User-Agent": "wisply/1.0 (contact@example.com)"}
 BOT_ID = "game_deals"
 ICON_PATH = Path(__file__).parent.parent / "ui" / "assets" / "bots" / "game_deals" / "icon.png"
 
 def register():
-    db.add_bot(BOT_ID, "Game Deals", "#4CAF50", icon_path = str(ICON_PATH))
+    is_new = db.get_bot(BOT_ID) is None
+    db.add_bot(BOT_ID, "Game Deals", "#4CAF50")
+    if is_new:
+        appearance.set_bot_appearance(BOT_ID, color = "#4CAF50", expression = "smiling")
     db.add_channel("free_games", "Free games", "Games that are free right now", "#5df300", bot_id = BOT_ID, position = 0)
     db.add_channel("deals", "Deals", "Games on sale", "#2196F3", bot_id = BOT_ID, position = 1)
 
