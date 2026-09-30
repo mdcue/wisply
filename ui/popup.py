@@ -75,10 +75,11 @@ class ItemLabel(QLabel):
         super().leaveEvent(event)
 
 class PopupWindow(QWidget):
-    def __init__(self, on_unread_changed = None, bot_id = None, popup_style = None):
+    def __init__(self, on_unread_changed = None, bot_id = None, popup_style = True):
         super().__init__()
         self.on_unread_changed = on_unread_changed
         self.bot_id_filter = bot_id
+        self.popup_style = popup_style
         self.expanded_id = None
         self.anchor = (0, 0)
         
