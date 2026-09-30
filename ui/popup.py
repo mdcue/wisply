@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QMenu, QInputDialog, QColorDialog
 )
-from PyQt6.QtCore import Qt, QPoint, QTimer, QUrl, QSize
+from PyQt6.QtCore import Qt, QPoint, QTimer, QUrl, QSize, QEvent
 from PyQt6.QtGui import QGuiApplication, QColor, QDesktopServices, QIcon
 
 from core import db
@@ -99,10 +99,11 @@ class PopupWindow(QWidget):
         title.setStyleSheet(TITLE_STYLE)
         self.layout_.addWidget(title)
     
-    def focusOutEvent(self, event):
-        if not self.popup_style:
-            self.hide()
-        super().focusOutEvent(event)
+    def changeEvent(self, event):
+        if event.type() == QEvent.Type.ActivationChange:
+            if not self.popup_style and not self.isActiveWindow():
+                self.hide()
+        super().changeEvent(event)
     
     def _clear_rows(self):
         while self.layout_.count() > 1:
