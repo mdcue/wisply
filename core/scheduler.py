@@ -1,14 +1,19 @@
 import threading
 from core import db
-from bots import deals
+from bots.registry import ALL_BOTS
 
 INTERVAL_SECONDS = 45 * 60
 
 def run_cycle(on_complete = None):
     print("Running fetch cycle...")
-    deals.fetch()
-    print("Unread deals:", db.get_unread_count("deals"))
-    print("Unread free games:", db.get_unread_count("free_games"))
+    for bot in ALL_BOTS:
+        bot.register()
+        if db.is_bot_active(bot.BOT_ID):
+            bot.fetch()
+            print(f"Unread for {bot.BOT_ID}:", db.get_bot_unread(bot.BOT_ID))
+        else:
+            print(f"{bot.BOT_ID} is inactive, skipping fetch")
+    
     if on_complete:
         on_complete()
     schedule_next(on_complete)
@@ -23,7 +28,8 @@ def start(on_complete = None):
 
 if __name__ == "__main__":
     db.init_db()
-    deals.register()
+    for bot in ALL_BOTS:
+        bot.register()
     print("Scheduler started - fetching every", INTERVAL_SECONDS, "seconds. Ctrl+C to stop.")
     start()
     
