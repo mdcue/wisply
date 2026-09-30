@@ -19,7 +19,7 @@ def _recolor(source_path, color_rgba):
     """Flood-fills the interior of a black-line-art PNG with a color, keeping the line are black on top."""
     img = Image.open(source_path).convert("RGBA")
     w, h = img.size
-    px = img.load
+    px = img.load()
     
     line_mark = Image.new("L", (w,h), 0)
     lm = line_mark.load()
@@ -29,10 +29,10 @@ def _recolor(source_path, color_rgba):
             if a > 30 and (r + g + b) < 200:
                 lm[x, y] = 255
     
-    walls = Image.Ops.invert(line_mask)
+    walls = ImageOps.invert(line_mark)
     
     base = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    base.paste((255, 255, 255, 255), (0, 0, w, h), mark = walls)
+    base.paste((255, 255, 255, 255), (0, 0, w, h), mask = walls)
     
     seed = (w // 2, h // 2)
     ImageDraw.floodfill(base, seed, color_rgba, thresh = 10)
@@ -40,7 +40,7 @@ def _recolor(source_path, color_rgba):
     bpx = base.load()
     for y in range(h):
         for x in range(w):
-            if (bpx[x, y][0], bpx[x, y][1], bpx[x, y][2] == (255, 255, 255)):
+            if (bpx[x, y][0], bpx[x, y][1], bpx[x, y][2]) == (255, 255, 255):
                 bpx[x, y] = (0, 0, 0, 0)
     
     result = Image.alpha_composite(Image.new("RGBA", (w, h), (0, 0, 0, 0)), base)
@@ -53,7 +53,7 @@ def _add_badge(img):
     w = img.size[0]
     cx, cy = w - BADGE_MARGIN, BADGE_MARGIN
     draw.ellipse(
-        [cx - BADGE_RADIUS, cy - BADGE_RADIUS, cx + BADGE_RADIUS, cy + BADGE_MARGIN],
+        [cx - BADGE_RADIUS, cy - BADGE_RADIUS, cx + BADGE_RADIUS, cy + BADGE_RADIUS],
         fill = BADGE_COLOR
     )
     return img
