@@ -1,24 +1,23 @@
 import html
+from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QMenu, QInputDialog, QColorDialog
 )
-from PyQt6.QtCore import Qt, QPoint, QTimer, QUrl
-from PyQt6.QtGui import QGuiApplication, QColor, QDesktopServices
+from PyQt6.QtCore import Qt, QPoint, QTimer, QUrl, QSize
+from PyQt6.QtGui import QGuiApplication, QColor, QDesktopServices, QIcon
 
 from core import db
 
-#layout info
 POPUP_WIDTH = 300
 SCREEN_MARGIN = 8
 MAX_ITEMS_HEIGHT = 150
 ITEM_ROW_ESTIMATE = 40
+HEADER_ICON_SIZE = 28
 
-#colors
 UNREAD_COLOUR = "#ffffff"
 READ_COLOUR = "#888888"
 
-#stylizing for the GUI
 TRANSPARENT = "background: transparent;"
 POPUP_STYLE = "PopupWindow { background-color: #1e1e1e; border-radius: 8px; }"
 TITLE_STYLE = "color: white; font-size: 14px; font-weight: bold;"
@@ -26,22 +25,20 @@ HEADER_STYLE = (
     "text-align: left; color: white; padding: 8px; border: none; "
     "border-left: 4px solid {color}; background-color: rgba(255, 255, 255, 15);"
 )
-
 CHANNEL_LABEL_STYLE = "color: {color}; font-size: 12px; font-weight: bold;"
 MARK_BUTTON_STYLE = (
     "color: white; padding: 3px 8px; border: 1px solid #555; border-radius: 4px; "
     "background-color: rgba(255, 255, 255, 10);"
 )
-
 ITEM_STYLE = "color: {colour}; padding: 4px 6px;"
 ITEM_HOVER_STYLE = "background-color: rgba(255, 255, 255, 25); border-radius: 4px;"
 EMPTY_STYLE = "color: #888; padding: 6px;"
+EMPTY_STATE_STYLE = "color: #888; padding: 12px; font-size: 13px;"
 MENU_STYLE = (
     "QMenu { background-color: #2a2a2a; color: white; border: 1px solid #555; }"
     "QMenu::item { padding: 6px 20px; }"
     "QMenu::item:selected { background-color: #444; }"
 )
-
 SCROLL_STYLE = """
     QScrollArea { border: none; background: transparent; }
     QScrollBar:vertical { background: #2a2a2a; width: 10px; border-radius: 5px; margin: 0; }
@@ -51,13 +48,10 @@ SCROLL_STYLE = """
     QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
 """
 
-#some small helpers
 def clamp(value, low, high):
-    """Keep value between low and high"""
     return max(low, min(value, high))
 
 def make_container(spacing):
-    """A transparent widget with a zero-margin vertical layout. Returns (widget, layout)."""
     widget = QWidget()
     widget.setStyleSheet(TRANSPARENT)
     layout = QVBoxLayout(widget)
@@ -66,7 +60,7 @@ def make_container(spacing):
     return widget, layout
 
 class ItemLabel(QLabel):
-    """A QLabel that highlights on hover and (if it has a url) marks itself read on click."""
+    """A QLabel that highlights on hover and (if it holds a url) is clickable."""
     def __init__(self, base_style):
         super().__init__()
         self.base_style = base_style
@@ -81,9 +75,10 @@ class ItemLabel(QLabel):
         super().leaveEvent(event)
 
 class PopupWindow(QWidget):
-    def __init__(self, on_unread_changed = None):
+    def __init__(self, on_unread_changed = None, bot_id = None):
         super().__init__()
         self.on_unread_changed = on_unread_changed
+        self.bot_id_filter = bot_id
         self.expanded_id = None
         self.anchor = (0, 0)
         
@@ -100,7 +95,6 @@ class PopupWindow(QWidget):
         title.setStyleSheet(TITLE_STYLE)
         self.layout_.addWidget(title)
     
-    #for the UI
     def _clear_rows(self):
         while self.layout_.count() > 1:
             widget = self.layout_.takeAt(1).widget()
@@ -108,23 +102,41 @@ class PopupWindow(QWidget):
                 widget.hide()
                 widget.deleteLater()
     
+    def _bots_to_show(self):
+        if self.bot_id_filter:
+            bot = db.get_bot(self.bot_id_filter)
+            return [bot] if bot and bot[3] else [] #bot[3] is "active" - still hide it if somehow paused
+        return db.get_active_bots() #hides inactive bots
+    
     def refresh(self):
         self._clear_rows()
-        for bot_id, name, color, active, icon_path, expression in db.get_all_bots():
+        bots = self._bots_to_show()
+        
+        if not bots:
+            empty = QLabel("No active bots yet. \nOpen the Hub to activate one.")
+            empty.setStyleSheet(EMPTY_STATE_STYLE)
+            self.layout_.addWidget(empty)
+            return
+        
+        for bot_id, name, color, active, icon_path, expression in bots: #unpacking all info
             unread = db.get_bot_unread(bot_id)
-            is_open = bot_id == self.expanded_id
-            self.layout_.addWidget(self._build_header(bot_id, name, unread, color, is_open))
+            is_open = bot_id == self.expanded_id or self.bot_id_filter == bot_id
+            self.layout_.addWidget(self._build_header(bot_id, name, color, icon_path, unread, is_open))
             if is_open:
                 self.layout_.addWidget(self._build_bot_section(bot_id))
     
-    def _build_header(self, bot_id, name, unread, color, is_open):
+    def _build_header(self, bot_id, name, color, icon_path, unread, is_open):
         arrow = "▴" if is_open else "▾"
-        header = QPushButton(f"{name}   {unread} unread {arrow}")
+        header = QPushButton(f" {name}  {unread} unread {arrow}")
         header.setCursor(Qt.CursorShape.PointingHandCursor)
         header.setStyleSheet(HEADER_STYLE.format(color = color))
-        header.clicked.connect(
-            lambda _checked = False, bid = bot_id : self.toggle_bot(bid)
-        )
+        
+        if icon_path and Path(icon_path).exists():
+            header.setIcon(QIcon(icon_path))
+            header.setIconSize(QSize(HEADER_ICON_SIZE, HEADER_ICON_SIZE))
+        
+        if not self.bot_id_filter:
+            header.clicked.connect(lambda _c = False, bid = bot_id: self.toggle_bot(bid))
         header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         header.customContextMenuRequested.connect(
             lambda pos: self._show_header_menu(bot_id, header.mapToGlobal(pos))
@@ -133,7 +145,7 @@ class PopupWindow(QWidget):
     
     def _build_bot_section(self, bot_id):
         section, section_layout = make_container(spacing = 8)
-        for channel_id, title, _description, color in db.get_bot_channels(bot_id):
+        for channel_id, title, _desc, color in db.get_bot_channels(bot_id):
             section_layout.addWidget(self._build_channel_block(channel_id, title, color))
         return section
     
@@ -161,9 +173,7 @@ class PopupWindow(QWidget):
         button.setEnabled(unread > 0)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setStyleSheet(MARK_BUTTON_STYLE)
-        button.clicked.connect(
-            lambda _checked = False: self.mark_read_clicked(channel_id)
-        )
+        button.clicked.connect(lambda _c = False: self.mark_read_clicked(channel_id))
         return button
     
     def _build_items_list(self, channel_id, items):
@@ -179,14 +189,14 @@ class PopupWindow(QWidget):
             safe_text = html.escape(text)
             
             if url:
-                base_style = "padding: 4px 6px;"
+                base_style = "padding: 4px 6px; "
                 label = ItemLabel(base_style)
                 label.setWordWrap(True)
                 label.setTextFormat(Qt.TextFormat.RichText)
-                label.setText(f'<a href="{url}" style = "color:{colour}; text-decoration:none;">{safe_text}</a>')
+                label.setText(f'<a href="{url}" style="color:{colour}; text-decoration:none;">{safe_text}</a>')
                 label.setCursor(Qt.CursorShape.PointingHandCursor)
                 label.linkActivated.connect(
-                    lambda _url, iid =  item_id, cid = channel_id: self._item_clicked(iid, cid, _url)
+                    lambda _url, iid = item_id, cid = channel_id: self._item_clicked(iid, cid, _url)
                 )
             else:
                 base_style = ITEM_STYLE.format(colour = colour)
@@ -203,7 +213,6 @@ class PopupWindow(QWidget):
         scroll.setFixedHeight(min(MAX_ITEMS_HEIGHT, ITEM_ROW_ESTIMATE * max(1, len(items))))
         return scroll
     
-    #for click inputs
     def toggle_bot(self, bot_id):
         self.expanded_id = None if self.expanded_id == bot_id else bot_id
         self.rebuild()
@@ -221,7 +230,6 @@ class PopupWindow(QWidget):
             self.on_unread_changed()
         self.rebuild()
     
-    #renaming and recoloring
     def _show_header_menu(self, bot_id, global_pos):
         menu = QMenu(self)
         menu.setStyleSheet(MENU_STYLE)
@@ -254,12 +262,10 @@ class PopupWindow(QWidget):
         self._reopen()
     
     def _reopen(self):
-        #the popup can close when a dialog takes focus, so redraw and bring it back
         self.rebuild()
         self.show()
         self.activateWindow()
     
-    #position and sizing
     def rebuild(self):
         self.refresh()
         self.layout_.activate()
@@ -285,3 +291,4 @@ class PopupWindow(QWidget):
         self.rebuild()
         self.show()
         self.activateWindow()
+
