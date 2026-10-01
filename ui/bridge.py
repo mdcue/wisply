@@ -4,7 +4,7 @@ import threading
 from pathlib import Path
 from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal
 
-from core import db, account
+from core import db, account, appearance, icons
 from bots.registry import BOT_MODULES
 
 def _icon_to_data_uri(icon_path):
@@ -32,6 +32,52 @@ class HubBridge(QObject):
         if not name:
             return False
         account.create_account(name)
+        return True
+    
+    @pyqtSlot(result = str)
+    def get_expressions(self):
+        return json.dumps(icons.get_available_expressions())
+    
+    @pyqtSlot(str, result = str)
+    def get_channels(self, bot_id):
+        channels = []
+        for channel_id, title, _desc, color in db.get_bot_channels(bot_id):
+            items = []
+            for item_id, text, read, url in db.get_items(channel_id)[:10]:
+                items.append({"id": item_id, "text": text, "read": bool(read), "url": url or ""})
+            channels.append({
+                "id": channel_id,
+                "title": title,
+                "color": color,
+                "unread": db.get_unread_count(channel_id),
+                "items": items,
+            })
+        return json.dumps(channels)
+    
+    @pyqtSlot(str)
+    def mark_all_read(self, channel_id):
+        db.mark_all_read(channel_id)
+        self.dataChanged.emit()
+    
+    @pyqtSlot(str, str, result = bool)
+    def rename_wisp(self, bot_id, new_name):
+        new_name = new_name.strip()
+        if not new_name:
+            return False
+        db.update_bot(bot_id, name = new_name)
+        self.dataChanged.emit()
+        return True
+    
+    @pyqtSlot(str, str, result = bool)
+    def recolor_wisp(self, bot_id, hex_color):
+        appearance.set_bot_appearance(bot_id, color = hex_color)
+        self.dataChanged.emit()
+        return True
+    
+    @pyqtSlot(str, str, result = bool)
+    def set_expression(self, bot_id, expression):
+        appearance.set_bot_appearance(bot_id, expression = expression)
+        self.dataChanged.emit()
         return True
     
     @pyqtSlot(result = str)
