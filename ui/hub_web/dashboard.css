@@ -1,0 +1,58 @@
+body {
+    background: #1e1e1e;
+    color: white;
+    font-family: sans-serif;
+    padding: 16px;
+}
+
+.wisp-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    border-left: 4px solid transparent; /*this is overridden inline per-wisp(bot) color*/
+    transition: opacity 0.15s ease filter 0.15s ease;
+}
+
+.wisp-row.inactive {
+    opacity: 0.45;
+    filter: grayscale(70%);
+}
+
+.wisp-row img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+.wisp-name {
+    flex: 1;
+}
+
+.toggle-btn {
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 12px;
+    font-weight: bold;
+    color: white;
+}
+
+.toggle-btn.on {
+    background-color: #3a9d3a;
+}
+
+.toggle-btn.on:hover {
+    background-color: #46b846;
+}
+
+.toggle-btn.off {
+    background-color: #a33a3a;
+}
+
+.toggle-btn.off:hover {
+    background-color: #c24646;
+}

@@ -14,8 +14,8 @@ function renderWisps() {
 
         wisps.forEach(function (wisp){
             const row = document.createElement("div");
-            row.className = "wisp-row";
-            row.style.borderLeft = "4px solid " + wisp.color;
+            row.className = "wisp-row" + (wisp.active ? "" : " inactive");
+            row.style.borderLeftColor = wisp.color;
 
             const img = document.createElement("img");
             img.src = wisp.icon;
@@ -27,6 +27,7 @@ function renderWisps() {
             row.appendChild(name);
 
             const toggle = document.createElement("button");
+            toggle.className = "toggle-btn " + (wisp.active ? "on" : "off");
             toggle.textContent = wisp.active ? "On" : "Off";
             toggle.onclick = function () {
                 bridge.toggle_active(wisp.id, function (){
