@@ -3,6 +3,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebChannel import QWebChannel
+from PyQt6.QtWebEngineCore import QWebEnginePage
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QIcon
 
@@ -14,6 +15,10 @@ ASSETS_DIR = Path(__file__).parent / "assets"
 ICON_PLAIN = ASSETS_DIR / "icon.png"
 DASHBOARD_HTML = Path(__file__).parent / "hub_web" / "dashboard.html"
 
+class DebugPage(QWebEnginePage):
+    def javaScriptConsoleMessage(self, level, message, line, source):
+        print(f"JS CONSOLE [{line}]: {message}")
+
 class HubWindow(QMainWindow):
     def __init__(self, on_unread_changed = None):
         super().__init__()
@@ -24,6 +29,7 @@ class HubWindow(QMainWindow):
         self.resize(420, 600)
         
         self.view = QWebEngineView()
+        self.view.setPage(DebugPage(self.view))
         self.setCentralWidget(self.view)
         
         self.bridge = HubBridge()
