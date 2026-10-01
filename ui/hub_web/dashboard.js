@@ -70,7 +70,7 @@ function renderGallery() {
             btn.className = "cta-btn" + (wisp.active ? " added" : "");
             btn.textContent = wisp.active ? "Added" : "Add";
             btn.onclick = function () {
-                bridge.toggle.active(wisp.id, function (newState) {
+                bridge.toggle_active(wisp.id, function (newState) {
                     btn.textContent = newState ? "Added" : "Add";
                     btn.className = "cta-btn" + (newState ? " added" : "");
                 });
@@ -112,7 +112,7 @@ function renderWisps() {
             toggle.className = "toggle-btn " + (wisp.active ? "on" : "off");
             toggle.textContent = wisp.active ? "On" : "Off";
             toggle.onclick = function() {
-                bridge.toggle.active(wisp.id, function (){
+                bridge.toggle_active(wisp.id, function (){
                     renderWisps();
                 });
             };
