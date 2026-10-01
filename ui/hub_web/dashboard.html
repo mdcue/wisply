@@ -6,8 +6,26 @@
         <link rel="stylesheet" href="dashboard.css">
     </head>
     <body>
-        <h2>wisply Hub</h2>
-        <div id="wisp-list"></div>
+        <div id="onboarding" class="screen">
+            <div id="step-name" class="onboarding-step">
+                <h1>Welcome to wisply</h1>
+                <p>What should I call you?</p>
+                <input type="text" id="name-input" placeholder="Your name">
+                <button id="name-continue" class="cta-btn">Continue</button>
+            </div>
+
+            <div id="step-wisps" class="onboarding-step" style="display:none;">
+                <h1>Pick your wisps</h1>
+                <p>Turn on the ones you want active. You can add more later.</p>
+                <div id="gallery"></div>
+                <button id="onboarding-finish" class="cta-btn">Done</button>
+            </div>
+        </div>
+
+        <div id="main-hub" class="screen" style="display:none;">
+            <h2>wisply Hub</h2>
+            <div id="wisp-list"></div>
+        </div>
 
         <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
         <script src="dashboard.js"></script>
