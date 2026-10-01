@@ -4,7 +4,7 @@ import threading
 from pathlib import Path
 from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal
 
-from core import db
+from core import db, account
 from bots.registry import BOT_MODULES
 
 def _icon_to_data_uri(icon_path):
@@ -20,14 +20,26 @@ def _icon_to_data_uri(icon_path):
     return f"data:image/png;base64,{encoded}"
 
 class HubBridge(QObject):
-    """Exposes Python functions to the Hub's web page, and signals it when data changes."""
-    
     dataChanged = pyqtSignal()
+    
+    @pyqtSlot(result = bool)
+    def account_exists(self):
+        return account.account_exists()
+    
+    @pyqtSlot(str, result = bool)
+    def create_account(self, name):
+        name = name.strip()
+        if not name:
+            return False
+        account.create_account(name)
+        return True
     
     @pyqtSlot(result = str)
     def get_wisps(self):
         wisps = []
         for bot_id, name, color, active, icon_path, expression in db.get_all_bots():
+            module = BOT_MODULES.get(bot_id)
+            description = getattr(module, "DESCRIPTION", "")
             wisps.append({
                 "id": bot_id,
                 "name": name,
@@ -35,6 +47,7 @@ class HubBridge(QObject):
                 "active": bool(active),
                 "icon": _icon_to_data_uri(icon_path),
                 "expression": expression,
+                "description": description,
             })
         return json.dumps(wisps)
     
