@@ -14,7 +14,7 @@ body {
     background: rgba(255, 255, 255, 0.08);
     border-radius: 6px;
     border-left: 4px solid transparent; /*this is overridden inline per-wisp(bot) color*/
-    transition: opacity 0.15s ease filter 0.15s ease;
+    transition: opacity 0.15s ease, filter 0.15s ease;
 }
 
 .wisp-row.inactive {
@@ -55,4 +55,79 @@ body {
 
 .toggle-btn.off:hover {
     background-color: #c24646;
+}
+
+.screen {
+    max-width: 480px;
+}
+
+.onboarding-step h1 {
+    font-size: 22px;
+    margin-bottom: 4px;
+}
+
+.onboarding-step p {
+    color: #aaa;
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+#name-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background: #2a2a2a;
+    color: white;
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.cta-btn {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-weight: bold;
+    font-size: 14px;
+    color: white;
+    background-color: #3a7dd8;
+}
+
+.cta-btn:hover {
+    background-color: #4a8de8;
+}
+
+.gallery-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+
+.gallery-card img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+
+.gallery-card-info {
+    flex: 1;
+}
+
+.gallery-card-name {
+    font-weight: bold;
+}
+
+.gallery-card-desc {
+    color: #aaa;
+    font-size: 12px;
+}
+
+.gallery-card .cta-btn.added {
+    background-color: #3a9d3a;
 }
