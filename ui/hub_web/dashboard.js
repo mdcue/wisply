@@ -246,8 +246,11 @@ function buildChannelBlock(channel) {
         row.className = "channel-item" + (item.read ? " read" : "");
         if (item.url) {
             const a = document.createElement("a");
-            a.href = item.url;
-            a.textContent = item.text;
+            a.href = "#";
+            a.onclick = function (e) {
+                e.preventDefault(); //stops the embedded page from navigating away
+                bridge.open_item(item.id, item.url, function () { renderWisps(); });
+            };
             row.appendChild(a);
         } else {
             row.textContent = item.text;

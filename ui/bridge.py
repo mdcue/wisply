@@ -2,7 +2,8 @@ import base64
 import json
 import threading
 from pathlib import Path
-from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal, QUrl
+from PyQt6.QtGui import QDesktopServices
 
 from core import db, account, appearance, icons
 from bots.registry import BOT_MODULES
@@ -57,6 +58,12 @@ class HubBridge(QObject):
     @pyqtSlot(str)
     def mark_all_read(self, channel_id):
         db.mark_all_read(channel_id)
+        self.dataChanged.emit()
+    
+    @pyqtSlot(int, str)
+    def open_item(self, item_id, url):
+        db.mark_read(item_id)
+        QDesktopServices.openUrl(QUrl(url))
         self.dataChanged.emit()
     
     @pyqtSlot(str, str, result = bool)
