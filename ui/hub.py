@@ -3,7 +3,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebChannel import QWebChannel
-from PyQt6.QtWebEngineCore import QWebEnginePage
+from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QIcon
 
@@ -28,8 +28,11 @@ class HubWindow(QMainWindow):
         self.setWindowIcon(QIcon(str(ICON_PLAIN)))
         self.resize(420, 600)
         
+        profile = QWebEngineProfile(self.view)
+        profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)
+        page = DebugPage(profile, self.view)
         self.view = QWebEngineView()
-        self.view.setPage(DebugPage(self.view))
+        self.view.setPage(page)
         self.setCentralWidget(self.view)
         
         self.bridge = HubBridge()
