@@ -28,10 +28,11 @@ class HubWindow(QMainWindow):
         self.setWindowIcon(QIcon(str(ICON_PLAIN)))
         self.resize(420, 600)
         
+        self.view = QWebEngineView()
+        
         profile = QWebEngineProfile(self.view)
         profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)
         page = DebugPage(profile, self.view)
-        self.view = QWebEngineView()
         self.view.setPage(page)
         self.setCentralWidget(self.view)
         
@@ -42,7 +43,6 @@ class HubWindow(QMainWindow):
         
         if self.on_unread_changed:
             self.bridge.dataChanged.connect(self.on_unread_changed)
-
         self.view.load(QUrl.fromLocalFile(str(DASHBOARD_HTML)))
 
 if __name__ == "__main__":
