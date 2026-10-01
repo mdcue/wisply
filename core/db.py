@@ -59,7 +59,7 @@ def init_db():
 def add_bot(bot_id, name, color, icon_path = None):
     conn = get_connection()
     conn.execute(
-        "INSERT OR IGNORE INTO bots (id, name, color, icon_path, active) VALUES (?, ?, ?, ?, 1)",
+        "INSERT OR IGNORE INTO bots (id, name, color, icon_path, active) VALUES (?, ?, ?, ?, 0)",
         (bot_id, name, color, icon_path)
     )
     conn.commit()

@@ -19,6 +19,19 @@ def load_or_create_account():
         json.dump(account, f, indent = 2)
     return account
 
+def account_exists():
+    return ACCOUNT_PATH.exists()
+
+def create_account(name):
+    account = {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "created_at": datetime.now().isoformat()
+    }
+    with open(ACCOUNT_PATH, "w") as f:
+        json.dump(account, f, indent = 2)
+    return account
+
 if __name__ == "__main__":
     acc = load_or_create_account()
     print("Loaded account: ", acc)
