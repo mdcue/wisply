@@ -1,5 +1,6 @@
 import base64
 import json
+import threading
 from pathlib import Path
 from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal
 
@@ -45,11 +46,15 @@ class HubBridge(QObject):
         
         new_state = not bool(bot[3])
         db.set_bot_active(bot_id, new_state)
+        self.dataChanged.emit()
         
         if new_state:
             module = BOT_MODULES.get(bot_id)
             if module:
-                module.fetch()
+                threading.Thread(target = self._fetch_then_notify, args = (module,), daemon = True).start()
         
-        self.dataChanged.emit()
         return new_state
+        
+    def _fetch_then_notify(self, module):
+        module.fetch()
+        self.dataChanged.emit()
