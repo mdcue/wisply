@@ -44,8 +44,11 @@ class HubBridge(QObject):
         channels = []
         for channel_id, title, _desc, color in db.get_bot_channels(bot_id):
             items = []
-            for item_id, text, read, url in db.get_items(channel_id)[:10]:
-                items.append({"id": item_id, "text": text, "read": bool(read), "url": url or ""})
+            for item_id, text, read, url, price, discount in db.get_items(channel_id)[:10]:
+                items.append({
+                    "id": item_id, "text": text, "read": bool(read), "url": url or "",
+                    "price": price, "discount": discount,
+                })
             channels.append({
                 "id": channel_id,
                 "title": title,
