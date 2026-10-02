@@ -52,6 +52,10 @@ def init_db():
     item_columns = [row[1] for row in conn.execute("PRAGMA table_info(items)")]
     if "url" not in item_columns:
         conn.execute("ALTER TABLE items ADD COLUMN url TEXT")
+    if "price" not in item_columns:
+        conn.execute("ALTER TABLE items ADD COLUMN price REAL")
+    if "discount" not in item_columns:
+        conn.execute("ALTER TABLE items ADD COLUMN discount INTEGER")
     conn.commit()
     conn.close()
 
@@ -186,11 +190,11 @@ def get_all_channels():
     return rows
 
 #items for the database
-def add_item(channel_id, text, timestamp, url = None):
+def add_item(channel_id, text, timestamp, url = None, price = None, discount = None):
     conn = get_connection()
     conn.execute(
-        "INSERT INTO items (channel_id, text, timestamp, url) VALUES (?, ?, ?, ?)",
-        (channel_id, text, timestamp, url)
+        "INSERT INTO items (channel_id, text, timestamp, url, price, discount) VALUES (?, ?, ?, ?, ?, ?)",
+        (channel_id, text, timestamp, url, price, discount)
     )
     conn.commit()
     conn.close()
