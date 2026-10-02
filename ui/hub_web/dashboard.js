@@ -1,5 +1,6 @@
 let bridge = null;
 let expandedId = null;
+let channelSortMode = {};
 
 new QWebChannel(qt.webChannelTransport, function (channel) {
     bridge = channel.objects.bridge;
@@ -224,6 +225,28 @@ function buildChannelBlock(channel) {
     title.textContent = channel.title + "  .  " + channel.unread + " unread";
     head.appendChild(title);
 
+    const sortSelect = document.createElement("select");
+    sortSelect.className = "channel-sort";
+    const sortOptions = [
+        ["unread", "Unread first"],
+        ["price_asc", "Price: low to high"],
+    ];
+    if (channel.id === "deals") {
+        sortOptions.push(["discount_desc", "Biggest discount"]);
+    }
+    sortOptions.forEach(function ([value, label]) {
+        const o = document.createElement("option");
+        o.value = value;
+        o.textContent = label;
+        if ((channelSortMode[channel.id] || "unread") === value) o.selected = true;
+        sortSelect.appendChild(o);
+    });
+    sortSelect.onchange = function () {
+        channelSortMode[channel.id] = sortSelect.value;
+        renderWisps();
+    };
+    head.appendChild(sortSelect);
+    
     const markBtn = document.createElement("button");
     markBtn.className = "small-btn";
     markBtn.textContent = "Mark all read";
@@ -234,19 +257,22 @@ function buildChannelBlock(channel) {
     head.appendChild(markBtn);
     block.appendChild(head);
 
-    if (channel.items.length === 0) {
+    const items = sortChannelItems(channel.items, channelSortMode[channel.id] || "unread");
+    
+    if (items.length === 0) {
         const empty = document.createElement("div");
         empty.className = "channel-item";
         empty.textContent = "Nothing here yet.";
         block.appendChild(empty);
     }
 
-    channel.items.forEach(function (item) {
+    items.forEach(function (item) {
         const row = document.createElement("div");
         row.className = "channel-item" + (item.read ? " read" : "");
         if (item.url) {
             const a = document.createElement("a");
             a.href = "#";
+            a.textContent = item.text;
             a.onclick = function (e) {
                 e.preventDefault(); //stops the embedded page from navigating away
                 bridge.open_item(item.id, item.url, function () { renderWisps(); });
@@ -260,3 +286,5 @@ function buildChannelBlock(channel) {
 
     return block;
 }
+
+
