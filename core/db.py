@@ -211,7 +211,7 @@ def get_unread_count(channel_id):
 def get_items(channel_id):
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, text, read, url FROM items WHERE channel_id = ? ORDER BY id DESC",
+        "SELECT id, text, read, url, price, discount FROM items WHERE channel_id = ? ORDER BY id DESC",
         (channel_id,)
     ).fetchall()
     conn.close()
