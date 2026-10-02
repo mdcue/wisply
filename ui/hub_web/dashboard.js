@@ -307,6 +307,6 @@ function sortChannelItems(items, mode) {
             return (a.read === b.read) ? 0 : (a.read ? 1 : -1);
         });
     }
-
+    console.log("sorted prices:", copy.map(i => i.price));
     return copy;
 }
