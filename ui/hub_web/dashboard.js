@@ -287,4 +287,26 @@ function buildChannelBlock(channel) {
     return block;
 }
 
+function sortChannelItems(items, mode) {
+    const copy = items.slice();
 
+    if (mode === "price_asc") {
+        copy.sort(function (a, b) {
+            const pa = (a.price === null || a.price === undefined) ? Infinity : a.price;
+            const pb = (b.price === null || b.price === undefined) ? Infinity : b.price;
+            return pa - pb;
+        });
+    } else if (mode === "discount_desc") {
+        copy.sort(function (a, b) {
+            const da = (a.discount === null || a.discount === undefined) ? -1 : a.discount;
+            const db_ = (b.discount === null || b.discount === undefined) ? -1 : b.discount;
+            return db_ - da;
+        });
+    } else {
+        copy.sort(function (a, b) {
+            return (a.read === b.read) ? 0 : (a.read ? 1 : -1);
+        });
+    }
+
+    return copy;
+}
