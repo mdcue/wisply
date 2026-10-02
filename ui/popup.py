@@ -194,7 +194,7 @@ class PopupWindow(QWidget):
             empty.setStyleSheet(EMPTY_STYLE)
             inner_layout.addWidget(empty)
         
-        for item_id, text, read, url in items:
+        for item_id, text, read, url, price, discount in items:
             colour = READ_COLOUR if read else UNREAD_COLOUR
             safe_text = html.escape(text)
             
