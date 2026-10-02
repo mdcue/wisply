@@ -46,6 +46,9 @@ def fetch_deals(store_names):
         if is_new_deal(deal_id):
             title = deal.get("title")
             price = deal.get("salePrice")
+            price_val = float(price) if price not in (None, "") else None
+            if price_val is not None and price_val <= 0:
+                continue
             normal = deal.get("normalPrice")
             savings = round(float(deal.get("savings") or 0))
             store = store_names.get(deal.get("storeID"), "Unknown store")
