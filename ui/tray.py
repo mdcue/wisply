@@ -124,7 +124,6 @@ class TrayApp:
         sys.exit(self.app.exec())
 
 if __name__ == "__main__":
-    print("RUNNING FROM:", __file__) #temp
     db.init_db()
     for bot in ALL_BOTS:
         bot.register()
