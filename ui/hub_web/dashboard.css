@@ -231,3 +231,44 @@ body {
     color: white;
     font-size: 11px;
 }
+
+.app-header {
+    margin-bottom: 4px;
+}
+
+.app-header h2 {
+    margin: 0 0 12px 0;
+}
+
+.tab-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tab-btn {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: #999;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: bold;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-btn:hover {
+    color: #ccc;
+}
+
+.tab-btn.active {
+    color: white;
+    border-bottom: 2px solid #3a7dd8;
+}
+
+.placeholder-text,
+.section-sub {
+    color: #888;
+    font-size: 13px;
+}
