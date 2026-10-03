@@ -36,7 +36,7 @@ class TrayApp:
         hub_action = QAction("Open Hub")
         hub_action.triggered.connect(self.open_hub)
         self.menu.addAction(hub_action)
-        self.menu.addSeperator()
+        self.menu.addSeparator()
         
         self.startup_action = QAction("Start with Windows", checkable = True)
         self.startup_action.setChecked(startup.is_enabled())
