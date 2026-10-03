@@ -1,12 +1,18 @@
 let bridge = null;
 let expandedId = null;
 let channelSortMode = {};
+let currentTab = "dashboard";
 
 new QWebChannel(qt.webChannelTransport, function (channel) {
     bridge = channel.objects.bridge;
     bridge.dataChanged.connect(function () {
-        if (document.getElementById("main-hub").style.display !== "none") {
-            renderWisps();
+        const shell = document.getElementById("app-shell");
+        if (shell && shell.style.display !== "none") {
+            if (currentTab === "wisps") {
+                renderWisps();
+            } else if (currentTab === "discover") {
+                renderGallery("discover-gallery");
+            }
         }
     });
     start();
@@ -42,10 +48,11 @@ function showOnboarding() {
     };
 }
 
-function renderGallery() {
+function renderGallery(containerId) {
+    containerId = containerId || "gallery";
     bridge.get_wisps(function (json) {
         const wisps = JSON.parse(json);
-        const gallery = document.getElementById("gallery");
+        const gallery = document.getElementById(containerId);
         gallery.innerHTML = "";
 
         wisps.forEach(function (wisp) {
@@ -86,8 +93,35 @@ function renderGallery() {
 
 function showMainHub() {
     document.getElementById("onboarding").style.display = "none";
-    document.getElementById("main-hub").style.display = "block";
-    renderWisps();
+    document.getElementById("app-shell").style.display = "block";
+    setupTabs();
+    switchTab(currentTab);
+}
+
+function setupTabs() {
+    document.querySelectorAll(".tab-btn").forEach(function (btn) {
+        btn.onclick = function() {
+            switchTab(btn.dataset.tab);
+        };
+    });
+}
+
+function switchTab(tab) {
+    currentTab = tab;
+
+    document.querySelectorAll(".tab-btn").forEach(function (btn) {
+        btn.classList.toggle("active", btn.dataset.tab === tab);
+    });
+    document.querySelectorAll(".tab-view").forEach(function (view) {
+        view.style.display = "none";
+    });
+    document.getElementById("view-" + tab).style.display = "block";
+
+    if (tab === "wisps") {
+        renderWisps();
+    } else if (tab === "discover") {
+        renderGallery("discover-gallery");
+    }
 }
 
 function renderWisps() {
