@@ -33,9 +33,9 @@ class TrayApp:
         
         self.menu = QMenu()
         
-        hub_action = QAction("Open Hub")
-        hub_action.triggered.connect(self.open_hub)
-        self.menu.addAction(hub_action)
+        self.hub_action = QAction("Open Hub")
+        self.hub_action.triggered.connect(self.open_hub)
+        self.menu.addAction(self.hub_action)
         self.menu.addSeparator()
         
         self.startup_action = QAction("Start with Windows", checkable = True)
@@ -124,6 +124,7 @@ class TrayApp:
         sys.exit(self.app.exec())
 
 if __name__ == "__main__":
+    print("RUNNING FROM:", __file__) #temp
     db.init_db()
     for bot in ALL_BOTS:
         bot.register()
