@@ -22,9 +22,34 @@
             </div>
         </div>
 
-        <div id="main-hub" class="screen" style="display:none;">
-            <h2>wisply Hub</h2>
-            <div id="wisp-list"></div>
+        <div id="app-shell" class="screen" style="display: none;">
+            <div class="app-header">
+                <h2>wisply Hub</h2>
+            </div>
+
+            <div class="tab-bar">
+                <button class="tab-btn" data-tab="dashboard">Dashboard</button>
+                <button class="tab-btn" data-tab="wisps">Wisps</button>
+                <button class="tab-btn" data-tab="discover">Discover</button>
+                <button class="tab-btn" data-tab="settings">Settings</button>
+            </div>
+
+            <div id="view-dashboard" class="tab-view">
+                <p class="placeholder-text">Your activity feed will live here soon</p>
+            </div>
+
+            <div id="view-wisps" class="tab-view" style="display: none;">
+                <div id="wisp-list"></div>
+            </div>
+
+            <div id="view-discover" class="tab-view" style="display: none;">
+                <p class="section-sub">Add more wisps to your hub.</p>
+                <div id="discover-gallery"></div>
+            </div>
+
+            <div id="view-settings" class="tab-view" style="display: none;">
+                <p class="placeholder-text">Settings are coming soon.</p>
+            </div>
         </div>
 
         <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
