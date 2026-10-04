@@ -20,7 +20,7 @@ class DebugPage(QWebEnginePage):
         print(f"JS CONSOLE [{line}]: {message}")
 
 class HubWindow(QMainWindow):
-    def __init__(self, on_unread_changed = None):
+    def __init__(self, on_unread_changed = None, bridge = None):
         super().__init__()
         self.on_unread_changed = on_unread_changed
         
@@ -36,7 +36,7 @@ class HubWindow(QMainWindow):
         self.view.setPage(page)
         self.setCentralWidget(self.view)
         
-        self.bridge = HubBridge()
+        self.bridge = bridge if bridge is not None else HubBridge()
         self.channel = QWebChannel()
         self.channel.registerObject("bridge", self.bridge)
         self.view.page().setWebChannel(self.channel)
