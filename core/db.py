@@ -43,6 +43,10 @@ def init_db():
         conn.execute("ALTER TABLE bots ADD COLUMN icon_path TEXT")
     if "expression" not in columns:
         conn.execute("ALTER TABLE bots ADD COLUMN expression TEXT DEFAULT 'smiling'")
+    if "fetch_interval_seconds" not in columns:
+        conn.execute("ALTER TABLE bots ADD COLUMN fetch_interval_seconds INTEGER DEFAULT 3600")
+    if "last_fetched_at" not in columns:
+        conn.execute("ALTER TABLE bots ADD COLUMN last_fetched_at TEXT")
     
     columns = [row[1] for row in conn.execute("PRAGMA table_info(channels)")]
     if "bot_id" not in columns:
@@ -72,7 +76,8 @@ def add_bot(bot_id, name, color, icon_path = None):
 def get_bot(bot_id):
     conn = get_connection()
     row = conn.execute(
-        "SELECT id, name, color, active, icon_path, expression FROM bots WHERE id = ?", (bot_id,)
+        "SELECT id, name, color, active, icon_path, expression, fetch_interval_seconds, last_fetched_at "
+        "FROM bots WHERE id = ?", (bot_id,)
     ).fetchone()
     conn.close()
     return row
@@ -80,7 +85,8 @@ def get_bot(bot_id):
 def get_all_bots():
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, name, color, active, icon_path, expression FROM bots ORDER BY rowid"
+        "SELECT id, name, color, active, icon_path, expression, fetch_interval_seconds, last_fetched_at "
+        "FROM bots ORDER BY rowid"
     ).fetchall()
     conn.close()
     return rows
@@ -88,10 +94,25 @@ def get_all_bots():
 def get_active_bots():
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, name, color, active, icon_path, expression FROM bots WHERE active = 1 ORDER BY rowid"
+        "SELECT id, name, color, active, icon_path, expression, fetch_interval_seconds, last_fetched_at "
+        "FROM bots WHERE active = 1 ORDER BY rowid"
     ).fetchall()
     conn.close()
     return rows
+
+def set_fetch_interval(bot_id, seconds):
+    conn = get_connection()
+    conn.execute("UPDATE bots SET fetch_interval_seconds = ? WHERE id = ?", (seconds, bot_id))
+    conn.commit()
+    conn.close()
+
+def mark_fetched(bot_id):
+    conn = get_connection()
+    conn.execute(
+        "UPDATE bots SET last_fetched_at = datetime('now') WHERE id = ?", (bot_id,)
+    )
+    conn.commit()
+    conn.close()
 
 def update_bot (bot_id, name = None, color = None, icon_path = None, expression = None):
     conn = get_connection()
