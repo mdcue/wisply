@@ -77,9 +77,12 @@ def fetch_free_games(store_names):
             db.add_item("free_games", text, deal_id, url = url, price = 0.0, discount = 100)
 
 def fetch():
-    store_names = get_store_names()
-    fetch_deals(store_names)
-    fetch_free_games(store_names)
+    try:
+        store_names = get_store_names()
+        fetch_deals(store_names)
+        fetch_free_games(store_names)
+    except requests.exceptions.RequestException as e:
+        print(f"[{BOT_ID}] fetch failed: {e}")
 
 if __name__ == "__main__":
     db.init_db()
