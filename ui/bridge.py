@@ -107,6 +107,23 @@ class HubBridge(QObject):
             })
         return json.dumps(wisps)
     
+    @pyqtSlot(result = str)
+    def get_settings_wisps(self):
+        wisps = []
+        for bot_id, name, color, active, icon_path, expression, fetch_interval, last_fetched in db.get_active_bots():
+            wisps.append({
+                "id": bot_id,
+                "name": name,
+                "icon": _icon_to_data_uri(icon_path),
+                "fetch_interval": fetch_interval,
+                "last-fetched": last_fetched or "",
+            })
+        return json.dumps(wisps)
+
+    @pyqtSlot(str, int)
+    def set_fetch_interval(self, bot_id, seconds):
+        db.set_fetch_interval(bot_id, seconds)
+
     @pyqtSlot(str, result = bool)
     def toggle_active(self, bot_id):
         bot = db.get_bot(bot_id)
