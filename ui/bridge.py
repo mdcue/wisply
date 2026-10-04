@@ -22,6 +22,7 @@ def _icon_to_data_uri(icon_path):
 
 class HubBridge(QObject):
     dataChanged = pyqtSignal()
+    newItemsFound = pyqtSignal(str, int)
     
     @pyqtSlot(result = bool)
     def account_exists(self):
