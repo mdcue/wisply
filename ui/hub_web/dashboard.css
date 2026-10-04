@@ -1,8 +1,46 @@
+:root {
+    /*Dark theme (default)*/
+    --bg: #1e1e1e;
+    --text: #ffffff;
+    --text-muted: #aaaaaa;
+    --text-faint: #888888;
+    --card-bg: rgba(255, 255, 255, 0.08);
+    --card-hover-bg: rgba(255, 255, 255, 0.15);
+    --border: rgba(255, 255, 255, 0.1);
+    --input-bg: #2a2a2a;
+    --input-border: #555555;
+    --accent: #3a7dd8;
+    --accent-hover: #4a8de8;
+    --on-color: #3a9d3a;
+    --on-hover: #46b846;
+    --off-color: #a33a3a;
+    --off-hover: #c24646;
+}
+
+:root[data-theme="light"] {
+    --bg: #f4f4f4;
+    --text: #1a1a1a;
+    --text-muted: #555555;
+    --text-faint: #777777;
+    --card-bg: rgba(0, 0, 0, 0.05);
+    --card-hover-bg: rgba(0, 0, 0, 0.09);
+    --border: rgba(0, 0, 0, 0.1);
+    --input-bg: #ffffff;
+    --input-border: #cccccc;
+    --accent: #2f6fc9;
+    --accent-hover: #4a84d6;
+    --on-color: #2f8a2f;
+    --on-hover: #3aa23a;
+    --off-color: #b23a3a;
+    --off-hover: #c95050;
+}
+
 body {
-    background: #1e1e1e;
-    color: white;
+    background: var(--bg);
+    color: var(--text);
     font-family: sans-serif;
     padding: 16px;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
 .wisp-row {
@@ -12,7 +50,7 @@ body {
     gap: 10px;
     padding: 10px;
     margin-bottom: 8px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--card-bg);
     cursor: pointer;
     border-radius: 6px;
     border-left: 4px solid transparent; /*this is overridden inline per-wisp(bot) color*/
@@ -45,19 +83,19 @@ body {
 }
 
 .toggle-btn.on {
-    background-color: #3a9d3a;
+    background-color: var(--on-color);
 }
 
 .toggle-btn.on:hover {
-    background-color: #46b846;
+    background-color: var(--on-hover);
 }
 
 .toggle-btn.off {
-    background-color: #a33a3a;
+    background-color: var(--off-color);
 }
 
 .toggle-btn.off:hover {
-    background-color: #c24646;
+    background-color: var(--off-hover);
 }
 
 .screen {
@@ -70,7 +108,7 @@ body {
 }
 
 .onboarding-step p {
-    color: #aaa;
+    color: var(--text-muted);
     margin-top: 0;
     margin-bottom: 16px;
 }
@@ -79,10 +117,10 @@ body {
     width: 100%;
     box-sizing: border-box;
     padding: 10px;
-    border-radius: 6px;
-    border: 1px solid #555;
-    background: #2a2a2a;
-    color: white;
+    border-radius:  6px;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--text);
     font-size: 14px;
     margin-bottom: 16px;
 }
@@ -95,11 +133,11 @@ body {
     font-weight: bold;
     font-size: 14px;
     color: white;
-    background-color: #3a7dd8;
+    background-color: var(--accent);
 }
 
 .cta-btn:hover {
-    background-color: #4a8de8;
+    background-color: var(--accent-hover);
 }
 
 .gallery-card {
@@ -108,7 +146,7 @@ body {
     gap: 12px;
     padding: 12px;
     margin-bottom: 10px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--card-bg);
     border-radius: 8px;
 }
 
@@ -127,12 +165,12 @@ body {
 }
 
 .gallery-card-desc {
-    color: #aaa;
+    color: var(--text-muted);
     font-size: 12px;
 }
 
 .gallery-card .cta-btn.added {
-    background-color: #3a9d3a;
+    background-color: var(--on-color);
 }
 
 .wisp-row-top {
@@ -145,7 +183,7 @@ body {
 .manage-panel {
     margin-top: 10px;
     padding-top: 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--border);
 }
 
 .manage-field {
@@ -158,7 +196,7 @@ body {
 .manage-field label {
     width: 90px;
     font-size: 12px;
-    color: #aaa;
+    color: var(--text-muted);
 }
 
 .manage-field input[type="text"],
@@ -166,9 +204,9 @@ body {
     flex: 1;
     padding: 6px;
     border-radius: 4px;
-    border: 1px solid #555;
-    background: #2a2a2a;
-    color: white;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--text);
 }
 
 .manage-field input[type="color"] {
@@ -185,12 +223,12 @@ body {
     border-radius: 4px;
     padding: 5px 10px;
     color: white;
-    background-color: #3a7dd8;
+    background-color: var(--accent);
     font-size: 12px;
 }
 
 .small-btn:hover {
-    background-color: #4a8de8;
+    background-color: var(--accent-hover);
 }
 
 .channel-block {
@@ -212,10 +250,11 @@ body {
 .channel-item {
     font-size: 13px;
     padding: 3px 0;
+    color: var(--text);
 }
 
 .channel-item.read {
-    color: #888;
+    color: var(--text-faint);
 }
 
 .channel-item a {
@@ -227,32 +266,46 @@ body {
     margin-left: 8px;
     padding: 4px 6px;
     border-radius: 4px;
-    border: 1px solid #555;
-    background: #2a2a2a;
-    color: white;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--text);
     font-size: 11px;
 }
 
 .app-header {
     margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .app-header h2 {
     margin: 0 0 12px 0;
 }
 
+.theme-toggle-btn {
+    cursor: pointer;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 16px;
+    line-height: 1;
+}
+
 .tab-bar {
     display: flex;
     gap: 4px;
     margin-bottom: 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--border);
 }
 
 .tab-btn {
     cursor: pointer;
     border: none;
     background: transparent;
-    color: #999;
+    color: var(--text-muted);
     padding: 8px 14px;
     font-size: 13px;
     font-weight: bold;
@@ -260,17 +313,17 @@ body {
 }
 
 .tab-btn:hover {
-    color: #ccc;
+    color: var(--text);
 }
 
 .tab-btn.active {
-    color: white;
-    border-bottom: 2px solid #3a7dd8;
+    color: var(--text);
+    border-bottom: 2px solid var(--accent);
 }
 
 .placeholder-text,
 .section-sub {
-    color: #888;
+    color: var(--text-faint);
     font-size: 13px;
 }
 
@@ -280,7 +333,7 @@ body {
     gap: 12px;
     padding: 12px;
     margin-bottom: 10px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--card-bg);
     border-radius: 8px;
 }
 
@@ -299,7 +352,7 @@ body {
 }
 
 .settings-card-meta {
-    color: #888;
+    color: var(--text-faint);
     font-size: 11px;
     margin-top: 2px;
 }
@@ -307,8 +360,8 @@ body {
 .settings-interval {
     padding: 6px;
     border-radius: 4px;
-    border: 1px solid #555;
-    background: #2a2a2a;
-    color: white;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--text);
     font-size: 12px;
 }
