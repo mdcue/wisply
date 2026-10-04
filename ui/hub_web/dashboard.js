@@ -36,7 +36,7 @@ function showNotificationBanner(wispName, count) {
     if (!banner) return;
 
     const itemWord = count === 1 ? "item" : "items";
-    banner.textContent = '${wispName} found ${count} new ${itemWord}';
+    banner.textContent = `${wispName} found ${count} new ${itemWord}`;
     banner.style.display = "block";
 
     if (bannerTimeout) clearTimeout(bannerTimeout);
