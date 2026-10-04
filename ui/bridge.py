@@ -93,7 +93,7 @@ class HubBridge(QObject):
     @pyqtSlot(result = str)
     def get_wisps(self):
         wisps = []
-        for bot_id, name, color, active, icon_path, expression in db.get_all_bots():
+        for bot_id, name, color, active, icon_path, expression, fetch_interval, last_fetched in db.get_all_bots():
             module = BOT_MODULES.get(bot_id)
             description = getattr(module, "DESCRIPTION", "")
             wisps.append({

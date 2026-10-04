@@ -39,7 +39,7 @@ class LauncherStrip(QWidget):
                 widget.hide()
                 widget.deleteLater()
         
-        for bot_id, name, color, active, icon_path, expression in db.get_active_bots():
+        for bot_id, name, color, active, icon_path, expression, fetch_interval, last_fetched in db.get_active_bots():
             btn = QPushButton()
             btn.setFixedSize(ICON_BUTTON_SIZE, ICON_BUTTON_SIZE)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)

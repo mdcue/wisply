@@ -128,7 +128,7 @@ class PopupWindow(QWidget):
             self.layout_.addWidget(empty)
             return
         
-        for bot_id, name, color, active, icon_path, expression in bots: #unpacking all info
+        for bot_id, name, color, active, icon_path, expression, fetch_interval, last_fetched in bots: #unpacking all info
             unread = db.get_bot_unread(bot_id)
             is_open = bot_id == self.expanded_id or self.bot_id_filter == bot_id
             self.layout_.addWidget(self._build_header(bot_id, name, color, icon_path, unread, is_open))

@@ -57,7 +57,7 @@ class TrayApp:
     
     def _snapshot_counts(self):
         counts = {}
-        for bot_id, name, color, active, icon_path, expression in db.get_all_bots():
+        for bot_id, name, color, active, icon_path, expression, fetch_interval, last_fetched in db.get_all_bots():
             for channel_id, title, _desc, _color in db.get_bot_channels(bot_id):
                 counts[channel_id] = db.get_unread_count(channel_id)
         return counts
@@ -87,7 +87,7 @@ class TrayApp:
     def update_badge(self):
         total_unread = sum(
             db.get_bot_unread(bot_id)
-            for bot_id, name, color, active, icon_path, expression in db.get_active_bots()
+            for bot_id, name, color, active, icon_path, expression, fetch_interval, last_fetched in db.get_active_bots()
         )
         icon_path = ICON_BADGE if total_unread > 0 else ICON_PLAIN
         self.tray.setIcon(QIcon(str(icon_path)))
