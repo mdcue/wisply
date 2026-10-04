@@ -102,7 +102,7 @@ class TrayApp:
     def check_for_new_items(self):
         new_counts = self._snapshot_counts()
         
-        for bot_id, name, color, active, icon_path, expression in db.get_active_bots():
+        for bot_id, name, color, active, icon_path, expression, fetch_interval, last_fetched in db.get_active_bots():
             bot_had_news = False
             for channel_id, title, _desc, _color in db.get_bot_channels(bot_id):
                 old = self.old_counts.get(channel_id, 0)
