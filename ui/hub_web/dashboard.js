@@ -121,6 +121,8 @@ function switchTab(tab) {
         renderWisps();
     } else if (tab === "discover") {
         renderGallery("discover-gallery");
+    } else if (tab === "settings") {
+        renderSettings();
     }
 }
 
@@ -177,6 +179,67 @@ function renderWisps() {
             }
 
             list.appendChild(row);
+        });
+    });
+}
+
+const INTERVAL_OPTIONS = [
+    [900, "15 minutes"],
+    [1800, "30 minutes"],
+    [3600, "1 hour"],
+    [7200, "2 hours"],
+    [14400, "4 hours"],
+];
+
+function renderSettings() {
+    bridge.get_settings_wisps(function (json) {
+        const wisps = JSON.parse(json);
+        const list = document.getElementById("settings-list");
+        list.innerHTML = "";
+
+        if (wisps.length === 0) {
+            const empty = document.createElement("p");
+            empty.className = "placeholder-text";
+            empty.textContent = "No active wisps yet - activate one from the Wisps tab first.";
+            list.appendChild(empty);
+            return;
+        }
+
+        wisps.forEach(function (wisp) {
+            const card = document.createElement("div");
+            card.className = "settings-card";
+
+            const img = document.createElement("img");
+            img.src = wisp.icon;
+            card.appendChild(img);
+
+            const info = document.createElement("div");
+            info.className = "settings-card-info";
+            const name = document.createElement("div");
+            name.className = "settings-card-name";
+            name.textContent = wisp.name;
+            const meta = document.createElement("div");
+            meta.className = "settings-card-meta";
+            meta.textContent = wisp.last_fetched ? ("Last checked: " + wisp.last_fetched) : "Not checked yet";
+            info.appendChild(name);
+            info.appendChild(meta);
+            card.appendChild(info);
+
+            const select = document.createElement("select");
+            select.className = "settings-interval";
+            INTERVAL_OPTIONS.forEach(function ([seconds, label]) {
+                const o = document.createElement("option");
+                o.value = seconds;
+                o.textContent = label;
+                if (wisp.fetch_interval === seconds) o.selected = true;
+                select.appendChild(o);
+            });
+            select.onchange = function() {
+                bridge.set_fetch_interval(wisp.id, parseInt(select.value, 10));
+            };
+            card.appendChild(select);
+
+            list.appendChild(card);
         });
     });
 }
