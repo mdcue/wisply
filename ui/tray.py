@@ -127,6 +127,7 @@ if __name__ == "__main__":
     db.init_db()
     for bot in ALL_BOTS:
         bot.register()
+    scheduler.fetch_startup_only_bots()
     
     tray_app = TrayApp()
     tray_app.run()
