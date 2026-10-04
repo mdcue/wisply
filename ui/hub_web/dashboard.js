@@ -210,6 +210,7 @@ function renderWisps() {
 }
 
 const INTERVAL_OPTIONS = [
+    [0, "Only on startup"],
     [900, "15 minutes"],
     [1800, "30 minutes"],
     [3600, "1 hour"],
@@ -246,7 +247,13 @@ function renderSettings() {
             name.textContent = wisp.name;
             const meta = document.createElement("div");
             meta.className = "settings-card-meta";
-            meta.textContent = wisp.last_fetched ? ("Last checked: " + wisp.last_fetched) : "Not checked yet";
+            if (wisp.fetch_interval === 0) {
+                meta.textContent = wisp.last_fetched
+                    ? ("Checked at startup: " + wisp.last_fetched)
+                    : "Will check on next app launch";
+            } else {
+                meta.textContent = wisp.last_fetched ? ("Last checked: " + wisp.last_fetched) : "Not checked yet";
+            }
             info.appendChild(name);
             info.appendChild(meta);
             card.appendChild(info);
