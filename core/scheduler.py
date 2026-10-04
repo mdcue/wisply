@@ -24,6 +24,9 @@ def _is_due(bot_id):
     interval = bot[6]
     last_fetched_at = bot[7]
     
+    if interval == 0:
+        return False
+    
     if last_fetched_at is None:
         return True
     
@@ -34,6 +37,18 @@ def _is_due(bot_id):
     ).fetchone()
     conn.close()
     return bool(row[0])
+
+def fetch_startup_only_bots():
+    """Called once at app launch - fetches any active bot whose interval is set to
+    'startup only', since the regular tick will never pick these up on its own."""
+    for bot in ALL_BOTS:
+        bot.register()
+        if db.is_bot_active(bot.BOT_ID):
+            bot_row = db.get_bot(bot.BOT_ID)
+            if bot_row and bot_row[6] == 0:
+                print(f"Startup-only fetch for {bot.BOT_ID}...")
+                bot.fetch()
+                db.mark_fetched(bot.BOT_ID)
 
 def schedule_next(on_complete = None):
     timer = threading.Timer(TICK_SECONDS, run_tick, args=(on_complete,))
