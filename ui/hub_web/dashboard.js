@@ -2,6 +2,7 @@ let bridge = null;
 let expandedId = null;
 let channelSortMode = {};
 let currentTab = "dashboard";
+let bannerTimeout = null;
 const THEME_KEY = "wisply-theme";
 
 initTheme();
@@ -18,6 +19,7 @@ new QWebChannel(qt.webChannelTransport, function (channel) {
             }
         }
     });
+    bridge.newItemsFound.connect(showNotificationBanner);
     start();
 });
 
@@ -27,6 +29,24 @@ function initTheme() {
         theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
     }
     applyTheme(theme);
+}
+
+function showNotificationBanner(wispName, count) {
+    const banner = document.getElementById("notification-banner");
+    if (!banner) return;
+
+    const itemWord = count === 1 ? "item" : "items";
+    banner.textContent = '${wispName} found ${count} new ${itemWord}';
+    banner.style.display = "block";
+
+    if (bannerTimeout) clearTimeout(bannerTimeout);
+    bannerTimeout = setTimeout(function () {
+        banner.style.display = "none";
+    }, 5000);
+
+    if (currentTab === "wisps") {
+        renderWisps();
+    }
 }
 
 function applyTheme(theme) {
