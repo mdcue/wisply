@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtCore import QObject, pyqtSignal
 
+from ui.bridge import HubBridge
 from ui.popup import PopupWindow
 from ui.launcher import LauncherStrip
 from ui.hub import HubWindow
@@ -29,6 +30,7 @@ class TrayApp:
         self.tray.setToolTip("wisply")
         
         self.launcher = LauncherStrip(on_unread_changed = self.on_unread_changed)
+        self.hub_bridge = HubBridge()
         self.hub = None
         
         self.menu = QMenu()
@@ -75,7 +77,7 @@ class TrayApp:
     
     def open_hub(self):
         if self.hub is None:
-            self.hub = HubWindow(on_unread_changed = self.on_unread_changed)
+            self.hub = HubWindow(on_unread_changed = self.on_unread_changed, bridge = self.hub_bridge)
         self.hub.show()
         self.hub.raise_()
         self.hub.activateWindow()
@@ -103,18 +105,20 @@ class TrayApp:
         new_counts = self._snapshot_counts()
         
         for bot_id, name, color, active, icon_path, expression, fetch_interval, last_fetched in db.get_active_bots():
-            bot_had_news = False
+            bot_new_count = 0
             for channel_id, title, _desc, _color in db.get_bot_channels(bot_id):
                 old = self.old_counts.get(channel_id, 0)
                 new = new_counts.get(channel_id, 0)
                 if new > old:
-                    bot_had_news = True
-            if bot_had_news:
+                    bot_new_count += (new - old)
+            
+            if bot_new_count > 0:
                 self.tray.showMessage(
                     "wisply",
                     f"{name} found something new",
                     QSystemTrayIcon.MessageIcon.Information,
                 )
+                self.hub_bridge.newItemsFound.emit(name, bot_new_count)
         
         self.old_counts = new_counts
         self.update_badge()
