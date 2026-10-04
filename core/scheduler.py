@@ -2,24 +2,41 @@ import threading
 from core import db
 from bots.registry import ALL_BOTS
 
-INTERVAL_SECONDS = 45 * 60
+TICK_SECONDS = 60
 
-def run_cycle(on_complete = None):
-    print("Running fetch cycle...")
+def run_tick(on_complete = None):
     for bot in ALL_BOTS:
         bot.register()
-        if db.is_bot_active(bot.BOT_ID):
+        if db.is_bot_active(bot.BOT_ID) and _is_due(bot.BOT_ID):
+            print(f"Fetching {bot.BOT_ID}...")
             bot.fetch()
+            db.mark_fetched(bot.BOT_ID)
             print(f"Unread for {bot.BOT_ID}:", db.get_bot_unread(bot.BOT_ID))
-        else:
-            print(f"{bot.BOT_ID} is inactive, skipping fetch")
     
     if on_complete:
         on_complete()
     schedule_next(on_complete)
 
+def _is_due(bot_id):
+    bot = db.get_bot(bot_id)
+    if not bot:
+        return False
+    interval = bot[6]
+    last_fetched_at = bot[7]
+    
+    if last_fetched_at is None:
+        return True
+    
+    conn = db.get_connection()
+    row = conn.execute(
+        "SELECT (strftime('%s', 'now') - strftime('%s', ?)) >= ?",
+        (last_fetched_at, interval)
+    ).fetchone()
+    conn.close()
+    return bool(row[0])
+
 def schedule_next(on_complete = None):
-    timer = threading.Timer(INTERVAL_SECONDS, run_cycle, args = (on_complete,))
+    timer = threading.Timer(TICK_SECONDS, run_tick, args=(on_complete,))
     timer.daemon = True
     timer.start()
 
@@ -30,7 +47,8 @@ if __name__ == "__main__":
     db.init_db()
     for bot in ALL_BOTS:
         bot.register()
-    print("Scheduler started - fetching every", INTERVAL_SECONDS, "seconds. Ctrl+C to stop.")
+    
+    print("Scheduler started - checking every", TICK_SECONDS, "seconds. (Ctrl+C to stop)")
     start()
     
     while True:
