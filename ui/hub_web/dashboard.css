@@ -273,3 +273,42 @@ body {
     color: #888;
     font-size: 13px;
 }
+
+.settings-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+
+.settings-card img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+.settings-card-info {
+    flex: 1;
+}
+
+.settings-card-name {
+    font-weight: bold;
+}
+
+.settings-card-meta {
+    color: #888;
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+.settings-interval {
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background: #2a2a2a;
+    color: white;
+    font-size: 12px;
+}
