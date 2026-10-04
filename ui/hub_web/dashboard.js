@@ -2,6 +2,9 @@ let bridge = null;
 let expandedId = null;
 let channelSortMode = {};
 let currentTab = "dashboard";
+const THEME_KEY = "wisply-theme";
+
+initTheme();
 
 new QWebChannel(qt.webChannelTransport, function (channel) {
     bridge = channel.objects.bridge;
@@ -17,6 +20,28 @@ new QWebChannel(qt.webChannelTransport, function (channel) {
     });
     start();
 });
+
+function initTheme() {
+    let theme = localStorage.getItem(THEME_KEY);
+    if (!theme) {
+        theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    }
+    applyTheme(theme);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem(THEME_KEY, theme);
+    const btn = document.getElementById("theme-toggle");
+    if (btn) {
+        btn.textContent = theme === "light" ? "☀️" : "🌙";
+    }
+}
+
+function toggleTheme()  {
+    const current = document.documentElement.getAttribute("data-theme") || "dark";
+    applyTheme(current === "dark" ? "light" : "dark");
+}
 
 function start() {
     bridge.account_exists(function (exists) {
@@ -94,6 +119,7 @@ function renderGallery(containerId) {
 function showMainHub() {
     document.getElementById("onboarding").style.display = "none";
     document.getElementById("app-shell").style.display = "block";
+    document.getElementById("theme-toggle").onclick = toggleTheme;
     setupTabs();
     switchTab(currentTab);
 }
