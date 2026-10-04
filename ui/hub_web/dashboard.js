@@ -30,7 +30,7 @@ function start() {
 
 function showOnboarding() {
     document.getElementById("onboarding").style.display = "block";
-    document.getElementById("main-hub").style.display = "none";
+    document.getElementById("app-shell").style.display = "none";
 
     document.getElementById("name-continue").onclick = function () {
         const name = document.getElementById("name-input").value;
@@ -152,7 +152,10 @@ function renderWisps() {
             toggle.textContent = wisp.active ? "On" : "Off";
             toggle.onclick = function(e) {
                 e.stopPropagation()
-                bridge.toggle_active(wisp.id, function () {
+                bridge.toggle_active(wisp.id, function (newState) {
+                    if (!newState && expandedId === wisp.id) {
+                        expandedId = null;
+                    }
                     renderWisps();
                 });
             };
@@ -160,10 +163,12 @@ function renderWisps() {
 
             row.appendChild(top);
 
-            row.onclick = function () {
-                expandedId = (expandedId == wisp.id) ? null : wisp.id;
-                renderWisps()
-            };
+            if (wisp.active) {
+                row.onclick = function () {
+                    expandedId = (expandedId == wisp.id) ? null : wisp.id;
+                    renderWisps()
+                };
+            }
 
             if (expandedId === wisp.id) {
                 const panel = buildManagePanel(wisp);
