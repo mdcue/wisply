@@ -33,6 +33,15 @@ function initTheme() {
     applyTheme(theme);
 }
 
+function updateAccentColor() {
+    bridge.get_wisps(function (json) {
+        const wisps = JSON.parse(json);
+        const activeWisp = wisps.find(function (w) { return w.active; });
+        const accent = activeWisp ? activeWisp.color : "#3a7dd8";
+        document.documentElement.style.setProperty("--accent", accent);
+    });
+}
+
 function showNotificationBanner(wispName, count) {
     const banner = document.getElementById("notification-banner");
     if (!banner) return;
@@ -144,6 +153,7 @@ function showMainHub() {
     document.getElementById("onboarding").style.display = "none";
     document.getElementById("app-shell").style.display = "block";
     document.getElementById("theme-toggle").onclick = toggleTheme;
+    updateAccentColor();
     setupTabs();
     switchTab(currentTab);
 }
@@ -243,6 +253,7 @@ function renderWisps() {
             const row = document.createElement("div");
             row.className = "wisp-row" + (wisp.active ? "" : " inactive");
             row.style.borderLeftColor = wisp.color;
+            row.style.boxShadow = `0 2px 10px ${wisp.color}33`;
 
             const top = document.createElement("div");
             top.className = "wisp-row-top";
@@ -265,6 +276,7 @@ function renderWisps() {
                     if (!newState && expandedId === wisp.id) {
                         expandedId = null;
                     }
+                    updateAccentColor();
                     renderWisps();
                 });
             };
@@ -373,6 +385,7 @@ function buildManagePanel(wisp) {
     const renameBtn = document.createElement("button");
     renameBtn.className = "small-btn";
     renameBtn.textContent = "Save";
+    renameBtn.style.backgroundColor = wisp.color;
     renameBtn.onclick = function () {
         bridge.rename_wisp(wisp.id, renameInput.value, function () { renderWisps(); });
     };
@@ -388,7 +401,10 @@ function buildManagePanel(wisp) {
     colorInput.type = "color";
     colorInput.value = wisp.color;
     colorInput.onchange = function () {
-        bridge.recolor_wisp(wisp.id, colorInput.value, function () { renderWisps(); });
+        bridge.recolor_wisp(wisp.id, colorInput.value, function () {
+            updateAccentColor();
+            renderWisps();
+        });
     };
     colorField.append(colorLabel, colorInput);
     panel.appendChild(colorField);
@@ -467,6 +483,7 @@ function buildChannelBlock(channel) {
     markBtn.className = "small-btn";
     markBtn.textContent = "Mark all read";
     markBtn.disabled = channel.unread === 0;
+    markBtn.style.backgroundColor = channel.color;
     markBtn.onclick = function () {
         bridge.mark_all_read(channel.id, function () { renderWisps(); });
     };
