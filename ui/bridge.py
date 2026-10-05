@@ -91,6 +91,17 @@ class HubBridge(QObject):
         self.dataChanged.emit()
         return True
     
+    @pyqtSlot(str)
+    def fetch_now(self, bot_id):
+        module = BOT_MODULES.get(bot_id)
+        if module:
+            threading.Thread(target = self._manual_fetch, args = (bot_id, module), daemon = True).start()
+    
+    def _manual_fetch(self, bot_id, module):
+        module.fetch()
+        db.mark_fetched(bot_id)
+        self.dataChanged.emit()
+    
     @pyqtSlot(result = str)
     def get_wisps(self):
         wisps = []
