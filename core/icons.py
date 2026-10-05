@@ -31,19 +31,18 @@ def _recolor(source_path, color_rgba):
     
     walls = ImageOps.invert(line_mark)
     
-    base = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    base.paste((255, 255, 255, 255), (0, 0, w, h), mask = walls)
-    
+    fill_mask = walls.copy()
     seed = (w // 2, h // 2)
-    ImageDraw.floodfill(base, seed, color_rgba, thresh = 10)
+    ImageDraw.floodfill(fill_mask, seed, 128, thresh = 10)
     
-    bpx = base.load()
+    result = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    rpx = result.load()
+    fmpx = fill_mask.load()
     for y in range(h):
         for x in range(w):
-            if (bpx[x, y][0], bpx[x, y][1], bpx[x, y][2]) == (255, 255, 255):
-                bpx[x, y] = (0, 0, 0, 0)
+            if fmpx[x, y] == 128:
+                rpx[x, y] = color_rgba
     
-    result = Image.alpha_composite(Image.new("RGBA", (w, h), (0, 0, 0, 0)), base)
     result = Image.alpha_composite(result, img)
     return result
 
