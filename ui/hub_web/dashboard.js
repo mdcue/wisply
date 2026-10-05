@@ -64,6 +64,18 @@ function showNotificationBanner(wispName, count) {
     }
 }
 
+function readableTextColor(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+    if (luminance > 0.75) {
+        return `rgn(${Math.round(r * 0.6)}, ${Math.round(g * 0.6)}, ${Math.round(b * 0.6)})`;
+    }
+    return hex;
+}
+
 function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem(THEME_KEY, theme);
@@ -465,7 +477,7 @@ function buildChannelBlock(channel) {
     head.className = "channel-head";
     const title = document.createElement("span");
     title.className = "channel-title";
-    title.style.color = channel.color;
+    title.style.color = readableTextColor(channel.color);
     title.textContent = channel.title + "  .  " + channel.unread + " unread";
     head.appendChild(title);
 

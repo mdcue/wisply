@@ -465,3 +465,7 @@ body {
     color: inherit;
     text-decoration: none;
 }
+
+:root[data-theme="dark"] .app-brand-icon {
+    filter: invert(1);
+}
