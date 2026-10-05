@@ -121,6 +121,25 @@ class HubBridge(QObject):
             })
         return json.dumps(wisps)
 
+    @pyqtSlot(result = str)
+    def get_activity_feed(self):
+        feed = []
+        for bot_id, name, color, active, icon_path, expression, fetch_interval, last_fetched in db.get_active_bots():
+            icon = _icon_to_data_uri(icon_path)
+            for channel_id, title, _desc, _color in db.get_bot_channels(bot_id):
+                for item_id, text, read, url, price, discount in db.get_items(channel_id):
+                    feed.append({
+                        "item_id": item_id,
+                        "text": text,
+                        "read": bool(read),
+                        "url": url or "",
+                        "wisp_name": name,
+                        "wisp_icon": icon,
+                        "channel_id": channel_id,
+                    })
+        feed.sort(key = lambda x: x["item_id"], reverse = True)
+        return json.dumps(feed[:30])
+    
     @pyqtSlot(str, int)
     def set_fetch_interval(self, bot_id, seconds):
         db.set_fetch_interval(bot_id, seconds)
