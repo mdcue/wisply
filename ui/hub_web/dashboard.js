@@ -18,6 +18,8 @@ new QWebChannel(qt.webChannelTransport, function (channel) {
                 renderWisps();
             } else if (currentTab === "discover") {
                 renderGallery("discover-gallery");
+            } else if (currentTab === "settings") {
+                renderSettings();
             }
         }
     });
@@ -364,6 +366,16 @@ function renderSettings() {
                 bridge.set_fetch_interval(wisp.id, parseInt(select.value, 10));
             };
             card.appendChild(select);
+
+            const fetchBtn = document.createElement("button");
+            fetchBtn.className = "small-btn";
+            fetchBtn.textContent = "Check now";
+            fetchBtn.onclick = function () {
+                fetchBtn.disabled = true;
+                fetchBtn.textContent = "Checking...";
+                bridge.fetch_now(wisp.id);
+            };
+            card.appendChild(fetchBtn);
 
             list.appendChild(card);
         });
