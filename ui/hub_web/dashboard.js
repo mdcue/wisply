@@ -12,7 +12,9 @@ new QWebChannel(qt.webChannelTransport, function (channel) {
     bridge.dataChanged.connect(function () {
         const shell = document.getElementById("app-shell");
         if (shell && shell.style.display !== "none") {
-            if (currentTab === "wisps") {
+            if (currentTab === "dashboard") {
+                renderActivityFeed();
+            } else if (currentTab === "wisps") {
                 renderWisps();
             } else if (currentTab === "discover") {
                 renderGallery("discover-gallery");
@@ -46,6 +48,8 @@ function showNotificationBanner(wispName, count) {
 
     if (currentTab === "wisps") {
         renderWisps();
+    } else if (currentTab === "dashboard") {
+        renderActivityFeed();
     }
 }
 
@@ -163,13 +167,70 @@ function switchTab(tab) {
     });
     document.getElementById("view-" + tab).style.display = "block";
 
-    if (tab === "wisps") {
+    if (tab === "dashboard"){
+        renderActivityFeed();
+    } else if (tab === "wisps") {
         renderWisps();
     } else if (tab === "discover") {
         renderGallery("discover-gallery");
     } else if (tab === "settings") {
         renderSettings();
     }
+}
+
+function renderActivityFeed() {
+    bridge.get_activity_feed(function (json) {
+        const feed = JSON.parse(json);
+        const container = document.getElementById("activity-feed");
+        container.innerHTML = "";
+
+        if (feed.length === 0) {
+            const empty = document.createElement("p");
+            empty.className = "placeholder-text";
+            empty.textContent = "Nothing yet - activate a wisp to start seeing activity here.";
+            container.appendChild(empty);
+            return;
+        }
+
+        feed.forEach(function (entry) {
+            const row = document.createElement("div");
+            row.className = "feed-row" + (entry.read ? " read" : "");
+
+            const img = document.createElement("img");
+            img.src = entry.wisp_icon;
+            row.appendChild(img);
+
+            const content = document.createElement("div");
+            content.className = "feed-row-content";
+
+            const wispLabel = document.createElement("div");
+            wispLabel.className = "feed-row-wisp";
+            wispLabel.textContent = entry.wisp_name;
+            content.appendChild(wispLabel)
+
+            const textE1 = document.createElement("div");
+            textE1.className = "feed-row-text";
+
+            if (entry.url) {
+                const a = document.createElement("a");
+                a.href = "#";
+                a.textContent = entry.text;
+                a.onclick = function (e) {
+                    e.preventDefault();
+                    bridge.open_item(entry.item_id, entry.url, function () {
+                        renderActivityFeed();
+                    });
+                };
+                textE1.appendChild(a);
+            } else {
+                textE1.textContent = entry.text;
+            }
+
+            content.appendChild(textE1);
+            row.appendChild(content);
+            container.appendChild(row);
+        });
+    });
 }
 
 function renderWisps() {
