@@ -47,8 +47,14 @@ class HubWindow(QMainWindow):
     
     def closeEvent(self, event):
         self.view.setPage(None)
-        self.page.deleteLater()
-        self.profile.deleteLater()
+        try:
+            self.page.deleteLater()
+        except RuntimeError:
+            pass
+        try:
+            self.profile.deleteLater()
+        except RuntimeError:
+            pass
         super().closeEvent(event)
 
 if __name__ == "__main__":
