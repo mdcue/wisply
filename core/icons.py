@@ -16,12 +16,14 @@ def _hex_to_rgba(hex_color):
     return (r, g, b, 255)
 
 def _recolor(source_path, color_rgba):
-    """Flood-fills the interior of a black-line-art PNG with a color, keeping the line are black on top."""
+    """Flood-fills the interior of a black-line-art PNG with a color. The outline
+    switches to white when the chosen color is dark, so a black/near-black fill doesn't
+    swallow the line art and features."""
     img = Image.open(source_path).convert("RGBA")
     w, h = img.size
     px = img.load()
     
-    line_mark = Image.new("L", (w,h), 0)
+    line_mark = Image.new("L", (w, h), 0)
     lm = line_mark.load()
     for y in range(h):
         for x in range(w):
@@ -35,15 +37,26 @@ def _recolor(source_path, color_rgba):
     seed = (w // 2, h // 2)
     ImageDraw.floodfill(fill_mask, seed, 128, thresh = 10)
     
-    result = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    rpx = result.load()
+    fill_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    fpx = fill_layer.load()
     fmpx = fill_mask.load()
     for y in range(h):
         for x in range(w):
             if fmpx[x, y] == 128:
-                rpx[x, y] = color_rgba
+                fpx[x, y] = color_rgba
     
-    result = Image.alpha_composite(result, img)
+    r, g, b = color_rgba[0], color_rgba[1], color_rgba[2]
+    luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    outline_rgba = (255, 255, 255, 255) if luminance < 0.3 else (15, 15, 15, 255)
+    
+    outline_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    opx = outline_layer.load()
+    for y in range(h):
+        for x in range(w):
+            if lm[x, y] == 255:
+                opx[x, y] = outline_rgba
+    
+    result = Image.alpha_composite(fill_layer, outline_layer)
     return result
 
 def _add_badge(img):
