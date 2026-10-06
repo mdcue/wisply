@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QPoint, QTimer, QUrl, QSize, QEvent
 from PyQt6.QtGui import QGuiApplication, QColor, QDesktopServices, QIcon
 
-from core import db
+from core import db, appearance
 
 POPUP_WIDTH = 300
 SCREEN_MARGIN = 8
@@ -268,7 +268,7 @@ class PopupWindow(QWidget):
             return
         chosen = QColorDialog.getColor(QColor(bot[2]), None, "Choose bot color")
         if chosen.isValid():
-            db.update_bot(bot_id, color = chosen.name())
+            appearance.set_bot_appearance(bot_id, color = chosen.name())
         self._reopen()
     
     def _reopen(self):
