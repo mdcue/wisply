@@ -42,6 +42,7 @@ body {
     font-family: "Poppins", sans-serif;
     padding: 20px 24px;
     transition: background 0.2s ease, color 0.2s ease;
+    overflow-x: hidden;
 }
 
 .screen {
@@ -203,6 +204,7 @@ body {
 .settings-card {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 14px;
     padding: 14px;
     margin-bottom: 10px;
@@ -227,7 +229,8 @@ body {
 
 .gallery-card-info,
 .settings-card-info {
-    flex: 1;
+    flex: 1 1 150px;
+    min-width: 0;
 }
 
 .gallery-card-name,
