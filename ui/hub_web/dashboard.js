@@ -69,9 +69,13 @@ function readableTextColor(hex) {
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    const theme = document.documentElement.getAttribute("data-theme") || "dark";
 
-    if (luminance > 0.75) {
-        return `rgn(${Math.round(r * 0.6)}, ${Math.round(g * 0.6)}, ${Math.round(b * 0.6)})`;
+    if (theme === "light" && luminance > 0.55) {
+        return `rgb(${Math.round(r * 0.55)}, ${Math.round(g * 0.55)}, ${Math.round(b * 0.55)})`;
+    }
+    if (theme === "dark" && luminance < 0.3) {
+        return `rgb(${Math.min(255, Math.round(r + (255 - r) * 0.6))}, ${Math.min(255, Math.round(g + (255 - g) * 0.6))}, ${Math.min(255, Math.round(b + (255 - b) * 0.6))})`;
     }
     return hex;
 }
