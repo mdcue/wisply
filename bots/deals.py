@@ -54,7 +54,6 @@ def fetch_deals(store_names):
             store = store_names.get(deal.get("storeID"), "Unknown store")
             text = f"{title} - ${price} (was ${normal}, {savings}% off) ({store})"
             url = f"https://www.cheapshark.com/redirect?dealID={deal_id}"
-            price_val = float(price) if price not in (None, "") else None
             db.add_item("deals", text, deal_id, url = url, price = price_val, discount = savings)
 
 def fetch_free_games(store_names):
