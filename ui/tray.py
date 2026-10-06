@@ -76,7 +76,7 @@ class TrayApp:
         self.launcher.show_near(geo.x(), geo.y())
     
     def open_hub(self):
-        if self.hub is None:
+        if self.hub is None or not self.hub.isVisible():
             self.hub = HubWindow(on_unread_changed = self.on_unread_changed, bridge = self.hub_bridge)
         self.hub.show()
         self.hub.raise_()
