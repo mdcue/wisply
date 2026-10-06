@@ -30,10 +30,10 @@ class HubWindow(QMainWindow):
         
         self.view = QWebEngineView()
         
-        profile = QWebEngineProfile(self.view)
-        profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)
-        page = DebugPage(profile, self.view)
-        self.view.setPage(page)
+        self.profile = QWebEngineProfile(self.view)
+        self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)
+        self.page = DebugPage(self.profile, self.view)
+        self.view.setPage(self.page)
         self.setCentralWidget(self.view)
         
         self.bridge = bridge if bridge is not None else HubBridge()
@@ -44,6 +44,12 @@ class HubWindow(QMainWindow):
         if self.on_unread_changed:
             self.bridge.dataChanged.connect(self.on_unread_changed)
         self.view.load(QUrl.fromLocalFile(str(DASHBOARD_HTML)))
+    
+    def closeEvent(self, event):
+        self.view.setPage(None)
+        self.page.deleteLater()
+        self.profile.deleteLater()
+        super().closeEvent(event)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
