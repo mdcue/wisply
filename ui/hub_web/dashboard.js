@@ -3,6 +3,7 @@ let expandedId = null;
 let channelSortMode = {};
 let currentTab = "dashboard";
 let bannerTimeout = null;
+let cachedExpressions = null;
 const THEME_KEY = "wisply-theme";
 
 initTheme();
@@ -446,8 +447,7 @@ function buildManagePanel(wisp) {
     exprField.append(exprLabel, exprSelect);
     panel.appendChild(exprField);
 
-    bridge.get_expressions(function (json) {
-        const options = JSON.parse(json);
+    function populateExpressionOptions(options) {
         options.forEach(function (opt) {
             const o = document.createElement("option");
             o.value = opt;
@@ -455,7 +455,16 @@ function buildManagePanel(wisp) {
             if (opt === wisp.expression) o.selected = true;
             exprSelect.appendChild(o);
         });
-    });
+    }
+    if (cachedExpressions) {
+        populateExpressionOptions(cachedExpressions);
+    } else {
+        bridge.get_expressions(function (json) {
+            cachedExpressions = JSON.parse(json);
+            populateExpressionOptions(cachedExpressions);
+        });
+    }
+
     exprSelect.onchange = function () {
         bridge.set_expression(wisp.id, exprSelect.value, function () { renderWisps(); });
     };
