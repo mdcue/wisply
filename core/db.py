@@ -1,8 +1,8 @@
 import sqlite3
 from pathlib import Path
+from core.paths import DATA_DIR
 
-DB_PATH = Path(__file__).parent.parent / "data.db"
-#__file__ is used so it can hold the path to the current file.
+DB_PATH = DATA_DIR / "data.db"
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
