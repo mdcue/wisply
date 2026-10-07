@@ -5,3 +5,5 @@ data.db
 account.json
 .env
 ui/assets/bots/
+data.db
+account.json
