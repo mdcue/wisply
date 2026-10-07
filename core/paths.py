@@ -10,5 +10,5 @@ if _is_frozen():
 else:
     BASE_DIR = Path(__file__).parent.parent
 
-DATA_DIR = Path(os.environ.get("APPDATA", str(Path.home()))) / "wisply"
+DATA_DIR = Path(os.environ.get("APPDATA", str(Path.home()))) / "Wisply"
 DATA_DIR.mkdir(parents = True, exist_ok = True)
