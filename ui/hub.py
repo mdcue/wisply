@@ -31,7 +31,7 @@ class HubWindow(QMainWindow):
         self.view = QWebEngineView()
         
         self.profile = QWebEngineProfile(self.view)
-        self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)
+        self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.MemoryHttpCache)
         self.page = DebugPage(self.profile, self.view)
         self.view.setPage(self.page)
         self.setCentralWidget(self.view)
