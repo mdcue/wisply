@@ -1,8 +1,9 @@
 import json, uuid
 from datetime import datetime
 from pathlib import Path
+from core.paths import DATA_DIR
 
-ACCOUNT_PATH = Path(__file__).parent.parent / "account.json"
+ACCOUNT_PATH = DATA_DIR / "account.json"
 
 def load_or_create_account():
     if ACCOUNT_PATH.exists():
