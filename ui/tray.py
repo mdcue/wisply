@@ -12,7 +12,7 @@ from core import db, startup, scheduler, appearance, account
 from core.paths import BASE_DIR
 from bots.registry import ALL_BOTS
 
-ASSETS_DIR = BASE_DIR / "assets"
+ASSETS_DIR = BASE_DIR / "ui" / "assets"
 ICON_PLAIN = ASSETS_DIR / "icon.png"
 ICON_BADGE = ASSETS_DIR / "icon_badge.png"
 
