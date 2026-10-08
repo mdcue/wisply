@@ -8,7 +8,7 @@ from ui.bridge import HubBridge
 from ui.popup import PopupWindow
 from ui.launcher import LauncherStrip
 from ui.hub import HubWindow
-from core import db, startup, scheduler, appearance
+from core import db, startup, scheduler, appearance, account
 from core.paths import BASE_DIR
 from bots.registry import ALL_BOTS
 
@@ -129,6 +129,8 @@ class TrayApp:
         sys.exit(self.app.exec())
 
 def main():
+    background = "--background" in sys.argv
+    
     db.init_db()
     for bot in ALL_BOTS:
         bot.register()
@@ -136,6 +138,8 @@ def main():
     scheduler.fetch_startup_only_bots()
     
     tray_app = TrayApp()
+    if not background or not account.account_exists():
+        tray_app.open_hub()
     tray_app.run()
 
 if __name__ == "__main__":
