@@ -5,9 +5,12 @@ APP_NAME = "wisply"
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 def _get_command():
-    python_exe = sys.executable
+    if getattr(sys, "frozen", False):
+        #packaged build: sys.executable is the Wisply.exe itself
+        return f'"{sys.executable}" --background'
+    #Dev mode: run main.py with the current python
     main_path = Path(__file__).parent.parent / "main.py"
-    return f'"{python_exe}" "{main_path}"'
+    return f'"{sys.executable}" "{main_path}" --background'
 
 def is_enabled():
     try:
