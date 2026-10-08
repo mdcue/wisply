@@ -8,12 +8,13 @@ from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QIcon
 
 from core import db
+from core.paths import BASE_DIR
 from bots.registry import ALL_BOTS
 from ui.bridge import HubBridge
 
-ASSETS_DIR = Path(__file__).parent / "assets"
+ASSETS_DIR = BASE_DIR / "ui" / "assets"
 ICON_PLAIN = ASSETS_DIR / "icon.png"
-DASHBOARD_HTML = Path(__file__).parent / "hub_web" / "dashboard.html"
+DASHBOARD_HTML = BASE_DIR / "ui" / "hub_web" / "dashboard.html"
 
 class DebugPage(QWebEnginePage):
     def javaScriptConsoleMessage(self, level, message, line, source):
