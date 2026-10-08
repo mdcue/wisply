@@ -1,5 +1,4 @@
 import sqlite3
-from pathlib import Path
 from core.paths import DATA_DIR
 
 DB_PATH = DATA_DIR / "data.db"
