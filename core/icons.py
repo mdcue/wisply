@@ -1,8 +1,9 @@
-from pathlib import Path
 from PIL import Image, ImageDraw, ImageOps
 
-EXPRESSIONS_DIR = Path(__file__).parent.parent / "ui" / "assets" / "expressions"
-BOTS_DIR = Path(__file__).parent.parent / "ui" / "assets" / "bots"
+from core.paths import BASE_DIR, DATA_DIR
+
+EXPRESSIONS_DIR = BASE_DIR / "ui" / "assets" / "expressions"
+BOTS_DIR = DATA_DIR / "ui" / "assets" / "bots"
 
 BADGE_COLOR = (230, 60, 60, 255)
 BADGE_RADIUS = 44
