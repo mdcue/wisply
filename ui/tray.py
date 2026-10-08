@@ -9,9 +9,10 @@ from ui.popup import PopupWindow
 from ui.launcher import LauncherStrip
 from ui.hub import HubWindow
 from core import db, startup, scheduler, appearance
+from core.paths import BASE_DIR
 from bots.registry import ALL_BOTS
 
-ASSETS_DIR = Path(__file__).parent / "assets"
+ASSETS_DIR = BASE_DIR / "assets"
 ICON_PLAIN = ASSETS_DIR / "icon.png"
 ICON_BADGE = ASSETS_DIR / "icon_badge.png"
 
@@ -127,7 +128,7 @@ class TrayApp:
         scheduler.start(on_complete = self._on_cycle_complete)
         sys.exit(self.app.exec())
 
-if __name__ == "__main__":
+def main():
     db.init_db()
     for bot in ALL_BOTS:
         bot.register()
@@ -136,3 +137,6 @@ if __name__ == "__main__":
     
     tray_app = TrayApp()
     tray_app.run()
+
+if __name__ == "__main__":
+    main()
