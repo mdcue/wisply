@@ -10,5 +10,21 @@ if _is_frozen():
 else:
     BASE_DIR = Path(__file__).parent.parent
 
-DATA_DIR = Path(os.environ.get("APPDATA", str(Path.home()))) / "Wisply"
-DATA_DIR.mkdir(parents = True, exist_ok = True)
+def _default_data_dir():
+    return Path(os.environ.get("APPDATA", str(Path.home()))) / "Wisply"
+
+def _resolve_data_dir():
+    custom = os.environ.get("WISPLY_DATA_DIR")
+    if custom:
+        try:
+            path = Path(custom)
+            path.mkdir(parents = True, exist_ok = True)
+            return path
+        except OSError:
+            print(f"WISPLY_DATA_DIR ({custom} is not usable, using the default location instead.)")
+    
+    path = _default_data_dir()
+    path.mkdir(parents = True, exist_ok = True)
+    return path
+
+DATA_DIR = _resolve_data_dir()
