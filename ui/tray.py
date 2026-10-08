@@ -8,7 +8,7 @@ from ui.bridge import HubBridge
 from ui.popup import PopupWindow
 from ui.launcher import LauncherStrip
 from ui.hub import HubWindow
-from core import db, startup, scheduler
+from core import db, startup, scheduler, appearance
 from bots.registry import ALL_BOTS
 
 ASSETS_DIR = Path(__file__).parent / "assets"
@@ -131,6 +131,7 @@ if __name__ == "__main__":
     db.init_db()
     for bot in ALL_BOTS:
         bot.register()
+    appearance.ensure_icons()
     scheduler.fetch_startup_only_bots()
     
     tray_app = TrayApp()
