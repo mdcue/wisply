@@ -15,3 +15,20 @@ def set_bot_appearance(bot_id, color = None, expression = None):
     icon_path = icons.generate_bot_icon(bot_id, new_expression, new_color)
     
     db.update_bot(bot_id, color = new_color, expression = new_expression, icon_path = icon_path)
+
+def ensure_icons():
+    """Regenerates any wisp icon that is missing, or whose stored path points somewhere
+    other than the current icons folder (first launch after icon storage moved, DATA_DIR
+    changed, or someone deleted the folder). Safe to call on every startup: wisps whose
+    icons are already in place are skipped."""
+    for row in db.get_all_bots():
+        bot_id = row[0]
+        stored_path = row[4]
+        expected = icons.BOTS_DIR / bot_id / "icon.png"
+        expected_badge = icons.BOTS_DIR / bot_id / "icon_badge.png"
+        if stored_path == str(expected) and expected.exists() and expected_badge.exists():
+            continue
+        try:
+            set_bot_appearance(bot_id) #no color/expression passed, keeps the wisp's current color/expression
+        except (ValueError, OSError) as e:
+            print(f"Could not regenerate icon for {bot_id}: {e}") #this way one single icon wouldn't soft lock starting up
