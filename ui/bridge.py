@@ -1,5 +1,6 @@
 import base64
 import json
+import traceback
 import threading
 from pathlib import Path
 from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal, QUrl
@@ -98,9 +99,12 @@ class HubBridge(QObject):
             threading.Thread(target = self._manual_fetch, args = (bot_id, module), daemon = True).start()
     
     def _manual_fetch(self, bot_id, module):
-        module.fetch()
-        db.mark_fetched(bot_id)
-        self.dataChanged.emit()
+        try:
+            module.fetch()
+        except Exception:
+            traceback.print_exc()
+        finally:
+            self.dataChanged.emit()
     
     @pyqtSlot(result = str)
     def get_wisps(self):
@@ -173,5 +177,9 @@ class HubBridge(QObject):
         return new_state
         
     def _fetch_then_notify(self, module):
-        module.fetch()
-        self.dataChanged.emit()
+        try:
+            module.fetch()
+        except Exception:
+            traceback.print_exc()
+        finally:
+            self.dataChanged.emit()
