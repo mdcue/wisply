@@ -107,7 +107,7 @@ class HubBridge(QObject):
         finally:
             self.dataChanged.emit()
     
-    @pyqtSlot
+    @pyqtSlot()
     def open_data_folder(self):
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(DATA_DIR)))
     
