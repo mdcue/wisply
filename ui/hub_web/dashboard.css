@@ -500,3 +500,13 @@ body {
 :root[data-theme="dark"] .app-brand-icon {
     filter: invert(1);
 }
+
+.settings-footer {
+    margin-top: 24px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+
+.settings-footer p {
+    margin: 0 0 8px 0;
+}
