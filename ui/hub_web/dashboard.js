@@ -173,6 +173,7 @@ function showMainHub() {
     document.getElementById("app-shell").style.display = "block";
     document.getElementById("theme-toggle").onclick = toggleTheme;
     document.getElementById("open-data-btn").onclick = function () { bridge.open_data_folder(); };
+    setupQuitButtons();
     updateAccentColor();
     setupTabs();
     switchTab(currentTab);
@@ -206,6 +207,23 @@ function switchTab(tab) {
     } else if (tab === "settings") {
         renderSettings();
     }
+}
+
+function setupQuitButtons() {
+    const quitBtn = document.getElementById("quit-btn");
+    const confirmBox = document.getElementById("quit-confirm");
+
+    quitBtn.onclick = function () {
+        quitBtn.style.display = "none";
+        confirmBox.style.display = "flex";
+    };
+    document.getElementById("quit-no").onclick = function () {
+        confirmBox.style.display = "none";
+        quitBtn.style.display = "inline-block";
+    };
+    document.getElementById("quit-yes").onclick = function () {
+        bridge.quit_app();
+    };
 }
 
 function renderActivityFeed() {
