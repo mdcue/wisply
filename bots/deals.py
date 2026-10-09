@@ -14,7 +14,7 @@ def register():
     db.add_channel("deals", "Deals", "Games on sale", "#2196F3", bot_id = BOT_ID, position = 1)
 
 def get_store_names():
-    response = requests.get("https://www.cheapshark.com/api/1.0/stores", headers = HEADERS)
+    response = requests.get("https://www.cheapshark.com/api/1.0/stores", headers = HEADERS, timeout = 15)
     response.raise_for_status()
     stores = response.json()
     return {
@@ -35,7 +35,8 @@ def fetch_deals(store_names):
         "https://www.cheapshark.com/api/1.0/deals",
         params = {
             "upperPrice": 60,
-        }, headers = HEADERS)
+        }, headers = HEADERS,
+        timeout = 15)
     response.raise_for_status()
     deals = response.json()
     
@@ -59,7 +60,8 @@ def fetch_free_games(store_names):
         "https://www.cheapshark.com/api/1.0/deals",
         params = {
             "upperPrice": 0,
-        }, headers = HEADERS)
+        }, headers = HEADERS,
+        timeout = 15)
     response.raise_for_status()
     deals = response.json()
     
@@ -74,12 +76,9 @@ def fetch_free_games(store_names):
             db.add_item("free_games", text, deal_id, url = url, price = 0.0, discount = 100)
 
 def fetch():
-    try:
-        store_names = get_store_names()
-        fetch_deals(store_names)
-        fetch_free_games(store_names)
-    except requests.exceptions.RequestException as e:
-        print(f"[{BOT_ID}] fetch failed: {e}")
+    store_names = get_store_names()
+    fetch_deals(store_names)
+    fetch_free_games(store_names)
 
 if __name__ == "__main__":
     db.init_db()
