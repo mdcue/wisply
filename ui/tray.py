@@ -1,4 +1,5 @@
 import sys
+import threading
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon, QAction
@@ -135,7 +136,7 @@ def main():
     for bot in ALL_BOTS:
         bot.register()
     appearance.ensure_icons()
-    scheduler.fetch_startup_only_bots()
+    threading.Thread(target=scheduler.fetch_startup_only_bots, daemon=True).start()
     
     tray_app = TrayApp()
     if not background or not account.account_exists():
