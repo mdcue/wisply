@@ -3,7 +3,8 @@ import json
 import traceback
 import threading
 from pathlib import Path
-from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal, QUrl
+from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal, QUrl, QTimer
+from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QDesktopServices
 
 from core import db, account, appearance, icons
@@ -110,6 +111,10 @@ class HubBridge(QObject):
     @pyqtSlot()
     def open_data_folder(self):
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(DATA_DIR)))
+    
+    @pyqtSlot()
+    def quit_app(self):
+        QTimer.singleShot(0, lambda: QApplication.quit())
     
     @pyqtSlot(result = str)
     def get_wisps(self):
