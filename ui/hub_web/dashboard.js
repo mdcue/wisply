@@ -172,6 +172,7 @@ function showMainHub() {
     document.getElementById("onboarding").style.display = "none";
     document.getElementById("app-shell").style.display = "block";
     document.getElementById("theme-toggle").onclick = toggleTheme;
+    document.getElementById("open-data-btn").onclick = function () { bridge.open_data_folder(); };
     updateAccentColor();
     setupTabs();
     switchTab(currentTab);
