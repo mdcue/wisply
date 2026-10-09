@@ -7,6 +7,7 @@ from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal, QUrl
 from PyQt6.QtGui import QDesktopServices
 
 from core import db, account, appearance, icons
+from core.paths import DATA_DIR
 from bots.registry import BOT_MODULES
 
 def _icon_to_data_uri(icon_path):
@@ -105,6 +106,10 @@ class HubBridge(QObject):
             traceback.print_exc()
         finally:
             self.dataChanged.emit()
+    
+    @pyqtSlot
+    def open_data_folder(self):
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(DATA_DIR)))
     
     @pyqtSlot(result = str)
     def get_wisps(self):
