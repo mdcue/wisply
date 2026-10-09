@@ -56,9 +56,20 @@
             <div id="view-settings" class="tab-view" style="display: none;">
                 <p class="section-sub">Adjust how often each wisp checks for updates.</p>
                 <div id="settings-list"></div>
-                <div class=""section-footer">
+
+                <div class="section-footer">
                     <p class="section-sub">Your data and log file (wisply.log) are stored on this computer.</p>
                     <button id="open-data-btn" class="small-btn">Open data folder</button>
+
+                    <div class="quit-block">
+                        <p class="section-sub">Closing this window keeps your wisps running in the tray. Quitting stops them all until you start Wisply again.</p>
+                        <button id="quit-btn" class="danger-btn">Quit Wisply</button>
+                        <div id="quit-confirm" class="quit-confirm" style="display:none;">
+                            <span class="section-sub">Stop all wisps and quit?</span>
+                            <button id="quit-yes" class="danger-btn">Yes, quit</button>
+                            <button id="quit-no" class="small-btn">Cancel</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
