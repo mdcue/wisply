@@ -9,7 +9,7 @@ from ui.bridge import HubBridge
 from ui.popup import PopupWindow
 from ui.launcher import LauncherStrip
 from ui.hub import HubWindow
-from core import db, startup, scheduler, appearance, account
+from core import db, startup, scheduler, appearance, account, logsetup
 from core.paths import BASE_DIR
 from bots.registry import ALL_BOTS
 
@@ -130,6 +130,7 @@ class TrayApp:
         sys.exit(self.app.exec())
 
 def main():
+    logsetup.setup_logging()
     background = "--background" in sys.argv
     
     db.init_db()
