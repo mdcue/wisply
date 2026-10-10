@@ -4,6 +4,7 @@ let channelSortMode = {};
 let currentTab = "dashboard";
 let bannerTimeout = null;
 let cachedExpressions = null;
+let fetchStatus = {};
 const THEME_KEY = "wisply-theme";
 
 initTheme();
@@ -25,6 +26,7 @@ new QWebChannel(qt.webChannelTransport, function (channel) {
         }
     });
     bridge.newItemsFound.connect(showNotificationBanner);
+    bridge.fetchFinished.connect(onFetchFinished);
     start();
 });
 
@@ -34,6 +36,22 @@ function initTheme() {
         theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
     }
     applyTheme(theme);
+}
+
+function onFetchFinished(wispId, ok, newCount) {
+    if (!ok) {
+        fetchStatus[wispId] = "Couldn't reach the source, try again later";
+    } else if (newCount > 0) {
+        fetchStatus[wispId] = `Checked just now: ${newCount} new ${newCount === 1 ? "item" : "items"}`;
+    } else {
+        fetchStatus[wispId] = "Checked just now: nothing new";
+    }
+    if (currentTab === "settings") renderSettings();
+
+    setTimeout(function () {
+        delete fetchStatus[wispId];
+        if (currentTab === "settings") renderSettings();
+    }, 15000);
 }
 
 function updateAccentColor() {
@@ -378,13 +396,16 @@ function renderSettings() {
             name.textContent = wisp.name;
             const meta = document.createElement("div");
             meta.className = "settings-card-meta";
+            
+            let metaText;
             if (wisp.fetch_interval === 0) {
-                meta.textContent = wisp.last_fetched
-                    ? ("Checked at startup: " + wisp.last_fetched)
-                    : "Will check on next app launch";
+                metaText = wisp.last_fetched
+                ? ("Checked at startup: " + wisp.last_fetched)
+                : "Will check on next app launch";
             } else {
-                meta.textContent = wisp.last_fetched ? ("Last checked: " + wisp.last_fetched) : "Not checked yet";
+                metaText = wisp.last_fetched ? ("Last checked: " + wisp.last_fetched) : "Not checked yet";
             }
+            meta.textContent = fetchStatus[wisp.id] ? (fetchStatus[wisp.id] + " . " + metaText) : metaText;
             info.appendChild(name);
             info.appendChild(meta);
             card.appendChild(info);
