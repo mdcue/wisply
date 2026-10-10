@@ -3,7 +3,7 @@ from core import db, appearance
 
 HEADERS = {"User-Agent": "wisply/1.0 (contact@example.com)"}
 BOT_ID = "game_deals"
-DESCRIPTION = "Tracks game deals and free games accross every major store."
+DESCRIPTION = "Tracks game deals and free games across every major store."
 
 def register():
     is_new = db.get_bot(BOT_ID) is None
