@@ -30,13 +30,14 @@ def _utc_to_local_text(utc_text):
         return ""
     try:
         parsed = datetime.strptime(utc_text, "%Y-%m-%d %H:%M:%S")
-        return parsed.astimezone().strftime("%Y-%m-%d %H:%M")
+        return parsed.astimezone().strftime("%Y-%m-%d %H:%M:%S")
     except ValueError:
         return utc_text
 
 class HubBridge(QObject):
     dataChanged = pyqtSignal()
     newItemsFound = pyqtSignal(str, int)
+    fetchFinished = pyqtSignal(str, bool, int)
     
     @pyqtSlot(result = bool)
     def account_exists(self):
@@ -112,12 +113,20 @@ class HubBridge(QObject):
             threading.Thread(target = self._manual_fetch, args = (bot_id, module), daemon = True).start()
     
     def _manual_fetch(self, bot_id, module):
+        print(f"Manual check for {bot_id}...")
+        before = db.get_bot_unread(bot_id)
+        ok = False
         try:
             module.fetch()
+            db.mark_fetched(bot_id)
+            ok = True
         except Exception:
             traceback.print_exc()
         finally:
+            after = db.get_bot_unread(bot_id)
+            print(f"Manual check for {bot_id} {'finished' if ok else 'failed'}. Unread: {after}")
             self.dataChanged.emit()
+            self.fetchFinished.emit(bot_id, ok, max(0, after - before))
     
     @pyqtSlot()
     def open_data_folder(self):
