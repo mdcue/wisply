@@ -6,6 +6,7 @@ from pathlib import Path
 from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal, QUrl, QTimer
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QDesktopServices
+from datetime import datetime, timezone
 
 from core import db, account, appearance, icons
 from core.paths import DATA_DIR
@@ -22,6 +23,16 @@ def _icon_to_data_uri(icon_path):
     
     encoded = base64.b64encode(path.read_bytes()).decode("ascii")
     return f"data:image/png;base64,{encoded}"
+
+def _utc_to_local_text(utc_text):
+    """SQLite's datetime ('now') is UTC. Show it in the user's own time zone."""
+    if not utc_text:
+        return ""
+    try:
+        parsed = datetime.strptime(utc_text, "%Y-%m-%d %H:%M:%S")
+        return parsed.astimezone().strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        return utc_text
 
 class HubBridge(QObject):
     dataChanged = pyqtSignal()
@@ -142,7 +153,7 @@ class HubBridge(QObject):
                 "name": name,
                 "icon": _icon_to_data_uri(icon_path),
                 "fetch_interval": fetch_interval,
-                "last-fetched": last_fetched or "",
+                "last-fetched": _utc_to_local_text(last_fetched),
             })
         return json.dumps(wisps)
 
