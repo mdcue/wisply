@@ -9,6 +9,7 @@ from ui.bridge import HubBridge
 from ui.popup import PopupWindow
 from ui.launcher import LauncherStrip
 from ui.hub import HubWindow
+from ui.single_instance import SingleInstance
 from core import db, startup, scheduler, appearance, account, logsetup
 from core.paths import BASE_DIR
 from bots.registry import ALL_BOTS
@@ -22,7 +23,7 @@ class SchedulerSignals(QObject):
 
 class TrayApp:
     def __init__(self):
-        self.app = QApplication(sys.argv)
+        self.app = QApplication.instance() or QApplication(sys.argv)
         self.app.setQuitOnLastWindowClosed(False)
         
         self.signals = SchedulerSignals()
@@ -133,13 +134,23 @@ def main():
     logsetup.setup_logging()
     background = "--background" in sys.argv
     
+    app = QApplication.instance() or QApplication(sys.argv)
+    single = SingleInstance()
+    if single.notify_existing(show = not background):
+        print("Wisply is already running.")
+        return
+    if not single.start_listening():
+        print("Could not register as the running instance; continuing anyway.")
+    
     db.init_db()
     for bot in ALL_BOTS:
         bot.register()
     appearance.ensure_icons()
-    threading.Thread(target=scheduler.fetch_startup_only_bots, daemon=True).start()
+    threading.Thread(target = scheduler.fetch_startup_only_bots, daemon = True).start()
     
     tray_app = TrayApp()
+    tray_app.single_instance = single
+    single.show_requested(tray_app.open_hub)
     if not background or not account.account_exists():
         tray_app.open_hub()
     tray_app.run()
