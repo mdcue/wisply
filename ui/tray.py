@@ -150,7 +150,7 @@ def main():
     
     tray_app = TrayApp()
     tray_app.single_instance = single
-    single.show_requested(tray_app.open_hub)
+    single.show_requested.connect(tray_app.open_hub)
     if not background or not account.account_exists():
         tray_app.open_hub()
     tray_app.run()
