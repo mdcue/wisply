@@ -7,3 +7,5 @@ account.json
 ui/assets/bots/
 data.db
 account.json
+build/
+dist/
