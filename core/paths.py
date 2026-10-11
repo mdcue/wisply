@@ -21,7 +21,7 @@ def _resolve_data_dir():
             path.mkdir(parents = True, exist_ok = True)
             return path
         except OSError:
-            print(f"WISPLY_DATA_DIR ({custom} is not usable, using the default location instead.)")
+            print(f"WISPLY_DATA_DIR ({custom}) is not usable, using the default location instead.")
     
     path = _default_data_dir()
     path.mkdir(parents = True, exist_ok = True)
