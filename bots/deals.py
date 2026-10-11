@@ -1,7 +1,7 @@
 import requests
 from core import db, appearance
 
-HEADERS = {"User-Agent": "wisply/1.0 (contact@example.com)"}
+HEADERS = {"User-Agent": "wisply/1.0 (your-real-contact-here)"}
 BOT_ID = "game_deals"
 DESCRIPTION = "Tracks game deals and free games across every major store."
 
