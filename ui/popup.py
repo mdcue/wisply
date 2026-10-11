@@ -203,7 +203,7 @@ class PopupWindow(QWidget):
                 label = ItemLabel(base_style)
                 label.setWordWrap(True)
                 label.setTextFormat(Qt.TextFormat.RichText)
-                label.setText(f'<a href="{url}" style="color:{colour}; text-decoration:none;">{safe_text}</a>')
+                label.setText(f'<a href="{html.escape(url, quote = True)}" style="color:{colour}; text-decoration:none;">{safe_text}</a>')
                 label.setCursor(Qt.CursorShape.PointingHandCursor)
                 label.linkActivated.connect(
                     lambda _url, iid = item_id, cid = channel_id: self._item_clicked(iid, cid, _url)
@@ -256,7 +256,7 @@ class PopupWindow(QWidget):
         bot = db.get_bot(bot_id)
         if not bot:
             return
-        new_name, ok = QInputDialog.getText(None, "Rename bot", "New name:", text = bot[1])
+        new_name, ok = QInputDialog.getText(None, "Rename wisp", "New name:", text = bot[1])
         new_name = new_name.strip()
         if ok and new_name:
             db.update_bot(bot_id, name = new_name)
@@ -266,7 +266,7 @@ class PopupWindow(QWidget):
         bot = db.get_bot(bot_id)
         if not bot:
             return
-        chosen = QColorDialog.getColor(QColor(bot[2]), None, "Choose bot color")
+        chosen = QColorDialog.getColor(QColor(bot[2]), None, "Choose wisp color")
         if chosen.isValid():
             appearance.set_bot_appearance(bot_id, color = chosen.name())
         self._reopen()
