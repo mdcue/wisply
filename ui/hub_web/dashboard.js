@@ -511,28 +511,6 @@ function buildManagePanel(wisp) {
         };
     }
 
-    function populateExpressionOptions(options) {
-        options.forEach(function (opt) {
-            const o = document.createElement("option");
-            o.value = opt;
-            o.textContent = opt;
-            if (opt === wisp.expression) o.selected = true;
-            exprSelect.appendChild(o);
-        });
-    }
-    if (cachedExpressions) {
-        populateExpressionOptions(cachedExpressions);
-    } else {
-        bridge.get_expressions(function (json) {
-            cachedExpressions = JSON.parse(json);
-            populateExpressionOptions(cachedExpressions);
-        });
-    }
-
-    exprSelect.onchange = function () {
-        bridge.set_expression(wisp.id, exprSelect.value, function () { renderWisps(); });
-    };
-
     //Active channels
     if (wisp.active) {
         bridge.get_channels(wisp.id, function (json) {
