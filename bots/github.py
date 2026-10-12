@@ -1,3 +1,4 @@
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -6,7 +7,7 @@ import requests
 from core import db, appearance
 
 HEADERS = {
-    "User-Agent": "wisply/1.0 (contact@example.com)",
+    "User-Agent": "wisply/1.0 (contact@example.com)", #placeholder for real contact
     "Accept": "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
 }
@@ -17,7 +18,8 @@ DESCRIPTION = "Tracks trending, rising and hidden-gems repositories on GitHub."
 
 SEARCH_URL = "https://api.github.com/search/repositories"
 REQUEST_GAP_SECONDS = 2
-TOP_N = 10
+TOP_N = 5
+DESCRIPTION_LIMIT = 50 #characters for each repo's description to show; 0 hides it
 RISING_DAYS = 30
 GEM_MIN_STARS = 50
 GEM_MAX_STARS = 500
@@ -59,14 +61,24 @@ def _search(query, per_page):
 
 def is_new_item(key):
     conn = db.get_connection()
-    cur = conn.execute("SELECT COUNT(*) FROM items WHERE timestamp = ?", (key,))
-    exists = cur.fetchone()[0] > 0
+    curr = conn.execute("SELECT COUNT(*) FROM items WHERE timestamp = ?", (key,))
+    exists = curr.fetchone()[0] > 0
     conn.close()
     return not exists
 
-def _shorten(text, limit = 90):
+def _shorten(text, limit):
     text = (text or "").strip()
     return text if len(text) <= limit else text[:limit - 1].rstrip() + "..."
+
+def _compact(number):
+    """845 -> 845, 4816 -> 4.8K, 45979 -> 46K, 1250000 -> 1.2M"""
+    if number >= 1_000_000:
+        return f"{number / 1_000_000:.1f}M".replace(".0M", "M")
+    if number >= 10_000:
+        return f"{number / 1000:.0f}k"
+    if number >= 1000:
+        return f"{number / 1000:.1f}k".replace(".0k", "k")
+    return str(number)
 
 def _stars_per_day(repo):
     created = datetime.fromisoformat(repo["created_at"].replace("Z", "+00:00"))
@@ -74,9 +86,12 @@ def _stars_per_day(repo):
     return repo["stargazers_count"] / age_days
 
 def _describe(repo, extra = ""):
-    language = repo.get("language") or "n/a"
-    description = _shorten(repo.get("description")) or "No description"
-    return f"{repo['full_name']}  ★ {repo['stargazers_count']:,}{extra}  .  {language}  - {description}"
+    facts = [f"★ {_compact(repo['stargazers_count'])}{extra}"]
+    if repo.get("language"):
+        facts.append(repo["language"])
+    text = f"{repo['full_name']}  ({', '.join(facts)})"
+    description = _shorten(repo.get("description"), DESCRIPTION_LIMIT) if DESCRIPTION_LIMIT else ""
+    return f"{text} - {description}" if description else text
 
 def _save(channel_id, repos, extra = None):
     for repo in repos:
@@ -86,12 +101,21 @@ def _save(channel_id, repos, extra = None):
         suffix = extra(repo) if extra else ""
         db.add_item(channel_id, _describe(repo, suffix), key, url = repo["html_url"], price = None, discount = None)
 
+def reset_items():
+    """Deletes every item this wisp has stored, so the next fetch rebuilds them in the
+    current format. Its keys all start with gh_ ('!' is just the escape characters, so the
+    underscore is matched literally)."""
+    conn = db.get_connection()
+    conn.execute("DELETE FROM items WHERE timestamp LIKE 'gh!_%' ESCAPE '!'")
+    conn.commit()
+    conn.close()
+
 def fetch():
-    #one request feeds both "this month" and "rising"
+    #One request feeds bot "last month" and "rising"
     month = _search(f"created:>={_since(RISING_DAYS)}", 100)
     _save("gh_month", month[:TOP_N])
     rising = sorted(month, key = _stars_per_day, reverse = True)[:TOP_N]
-    _save("gh_rising", rising, lambda repo: f" (~{_stars_per_day(repo):.0f}/day)")
+    _save("gh_rising", rising, lambda repo: f", ~{_compact(round(_stars_per_day(repo)))}/day")
     
     time.sleep(REQUEST_GAP_SECONDS)
     _save("gh_week", _search(f"created:>={_since(7)}", TOP_N))
@@ -116,6 +140,9 @@ def fetch():
 if __name__ == "__main__":
     db.init_db()
     register()
+    if "--reset" in sys.argv:
+        reset_items()
+        print("Cleared the old GitHub items.")
     fetch()
     for channel_id, title, _desc, _color in CHANNELS:
         print(f"Unread in {title}:", db.get_unread_count(channel_id))
