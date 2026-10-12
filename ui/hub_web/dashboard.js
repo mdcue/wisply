@@ -479,13 +479,37 @@ function buildManagePanel(wisp) {
     panel.appendChild(colorField);
 
     //Expression
-    const exprField = document.createElement("div");
-    exprField.className = "manage-field";
-    const exprLabel = document.createElement("label");
-    exprLabel.textContent = "Expression";
-    const exprSelect = document.createElement("select");
-    exprField.append(exprLabel, exprSelect);
-    panel.appendChild(exprField);
+    if (wisp.id !== "companion") {
+        const exprField = document.createElement("div");
+        exprField.className = "manage-field";
+        const exprLabel = document.createElement("label");
+        exprLabel.textContent = "Expression";
+        const exprSelect = document.createElement("select");
+        exprField.append(exprLabel, exprSelect);
+        panel.appendChild(exprField);
+
+        const populateExpressionOptions = function (options) {
+            options.forEach(function (opt) {
+                const o = document.createElement("option");
+                o.value = opt;
+                o.textContent = opt;
+                if (opt === wisp.expression) o.selected = true;
+                exprSelect.appendChild(o);
+            });
+        };
+        if (cachedExpressions) {
+            populateExpressionOptions(cachedExpressions);
+        } else {
+            bridge.get_expressions(function (json) {
+                cachedExpressions = JSON.parse(json);
+                populateExpressionOptions(cachedExpressions);
+            });
+        }
+
+        exprSelect.onchange = function () {
+            bridge.set_expression(wisp.id, exprSelect.value, function () { renderWisps(); });
+        };
+    }
 
     function populateExpressionOptions(options) {
         options.forEach(function (opt) {
@@ -534,27 +558,25 @@ function buildChannelBlock(channel) {
     title.textContent = channel.title + "  .  " + channel.unread + " unread";
     head.appendChild(title);
 
-    const sortSelect = document.createElement("select");
-    sortSelect.className = "channel-sort";
-    const sortOptions = [
-        ["unread", "Unread first"],
-        ["price_asc", "Price: low to high"],
-    ];
-    if (channel.id === "deals") {
-        sortOptions.push(["discount_desc", "Biggest discount"]);
+    const sortOptions = sortOptionsFor(channel);
+    const sortMode = currentSortMode(channel, sortOptions);
+
+    if (sortOptions.length > 1) {
+        const sortSelect = document.createElement("select");
+        sortSelect.className = "channel-sort";
+        sortOptions.forEach(function ([value, label]) {
+            const o = document.createElement("option");
+            o.value = value;
+            o.textContent = label;
+            if (sortMode === value) o.selected = true;
+            sortSelect.appendChild(o);
+        });
+        sortSelect.onchange = function () {
+            channelSortMode[channel.id] = sortSelect.value;
+            renderWisps();
+        };
+        head.appendChild(sortSelect);
     }
-    sortOptions.forEach(function ([value, label]) {
-        const o = document.createElement("option");
-        o.value = value;
-        o.textContent = label;
-        if ((channelSortMode[channel.id] || "unread") === value) o.selected = true;
-        sortSelect.appendChild(o);
-    });
-    sortSelect.onchange = function () {
-        channelSortMode[channel.id] = sortSelect.value;
-        renderWisps();
-    };
-    head.appendChild(sortSelect);
     
     const markBtn = document.createElement("button");
     markBtn.className = "small-btn";
@@ -567,7 +589,7 @@ function buildChannelBlock(channel) {
     head.appendChild(markBtn);
     block.appendChild(head);
 
-    const items = sortChannelItems(channel.items, channelSortMode[channel.id] || "unread");
+    const items = sortChannelItems(channel.items, sortMode);
     
     if (items.length === 0) {
         const empty = document.createElement("div");
@@ -597,6 +619,29 @@ function buildChannelBlock(channel) {
     return block;
 }
 
+function sortOptionsFor(channel) {
+    const options = [["unread", "Unread first"]];
+    const hasPrice = channel.items.some(function (item) {
+        return item.price !== null && item.price !== undefined;
+    });
+    if (hasPrice) {
+        options.push(["price_asc", "Price: low to high"]);
+    }
+    if (channel.id === "deals") {
+        options.push(["discount_desc", "Biggest discount"]);
+    }
+    if (channel.id.startsWith("gh_")) {
+        options.push(["stars_desc", "Most stars"]); //GitHub items keep their star count in the discount field
+    }
+    return options;
+}
+
+function currentSortMode(channel, options) {
+    const saved = channelSortMode[channel.id];
+    const stillOffered = options.some(function ([value]) { return value === saved; });
+    return stillOffered ? saved : "unread";
+}
+
 function sortChannelItems(items, mode) {
     const copy = items.slice();
 
@@ -611,6 +656,12 @@ function sortChannelItems(items, mode) {
             const da = (a.discount === null || a.discount === undefined) ? -1 : a.discount;
             const db_ = (b.discount === null || b.discount === undefined) ? -1 : b.discount;
             return db_ - da;
+        });
+    } else if (mode === "stars_desc") {
+        copy.sort(function (a, b) {
+            const sa = (a.discount === null || a.discount === undefined) ? -1 : a.discount;
+            const sb = (b.discount === null || b.discount === undefined) ? -1 : b.discount;
+            return sb - sa;
         });
     } else {
         copy.sort(function (a, b) {

@@ -99,7 +99,7 @@ def _save(channel_id, repos, extra = None):
         if not is_new_item(key):
             continue
         suffix = extra(repo) if extra else ""
-        db.add_item(channel_id, _describe(repo, suffix), key, url = repo["html_url"], price = None, discount = None)
+        db.add_item(channel_id, _describe(repo, suffix), key, url = repo["html_url"], price = None, discount = repo["stargazers_count"])
 
 def reset_items():
     """Deletes every item this wisp has stored, so the next fetch rebuilds them in the
