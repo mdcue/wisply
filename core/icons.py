@@ -29,48 +29,21 @@ def _hex_to_rgba(hex_color):
     return (r, g, b, 255)
 
 def _recolor(source_path, color_rgba):
-    """Flood-fills the interior of a black-line-art PNG with a color. The outline
-    switches to white when the chosen color is dark, so a black/near-black fill doesn't
-    swallow the line art and features."""
+    """Fills the inside of a black-line-art PNG with a color. The outline switches to
+    white when the color is dark, so a near-black fill doesn't swallow the line-art."""
     img = Image.open(source_path).convert("RGBA")
     w, h = img.size
-    px = img.load()
+    lines = _line_mask(img)
     
-    line_mark = Image.new("L", (w, h), 0)
-    lm = line_mark.load()
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a > 30 and (r + g + b) < 200:
-                lm[x, y] = 255
-    
-    walls = ImageOps.invert(line_mark)
-    
-    fill_mask = walls.copy()
-    seed = (w // 2, h // 2)
-    ImageDraw.floodfill(fill_mask, seed, 128, thresh = 10)
+    fill_mask = ImageOps.invert(lines)
+    ImageDraw.floodfill(fill_mask, (w // 2, h // 2), 128, thresh = 10)
+    interior = fill_mask.point(lambda v: 255 if v == 128 else 0)
     
     fill_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    fpx = fill_layer.load()
-    fmpx = fill_mask.load()
-    for y in range(h):
-        for x in range(w):
-            if fmpx[x, y] == 128:
-                fpx[x, y] = color_rgba
-    
-    r, g, b = color_rgba[0], color_rgba[1], color_rgba[2]
-    luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-    outline_rgba = (255, 255, 255, 255) if luminance < 0.3 else (15, 15, 15, 255)
-    
+    fill_layer.paste(color_rgba, mask = interior)
     outline_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    opx = outline_layer.load()
-    for y in range(h):
-        for x in range(w):
-            if lm[x, y] == 255:
-                opx[x, y] = outline_rgba
-    
-    result = Image.alpha_composite(fill_layer, outline_layer)
-    return result
+    outline_layer.paste(_outline_rgba(color_rgba), mask = lines)
+    return Image.alpha_composite(fill_layer, outline_layer)
 
 def _outline_rgba(color_rgba):
     """Same rule _recolor uses: white lines on dark colors, near-black lines otherwise."""
@@ -80,16 +53,10 @@ def _outline_rgba(color_rgba):
 
 def _line_mask(img):
     """255 wherever the artwork has a dark line, 0 elsewhere."""
-    w, h = img.size
-    px = img.load()
-    mask = Image.new("L", (w, h), 0)
-    mp = mask.load()
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a > 30 and (r + g + b) < 200:
-                mp[x, y] = 255
-    return mask
+    r, g, b, a = img.split()
+    dark = ImageChops.add(ImageChops.add(r, g), b).point(lambda v:255 if v < 200 else 0)
+    solid = a.point(lambda v: 255 if v > 30 else 0)
+    return ImageChops.multiply(dark, solid)
 
 def _split_outline(line):
     """Splits the line art into the head outline and the face features. The outline is
