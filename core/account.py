@@ -5,21 +5,6 @@ from core.paths import DATA_DIR
 
 ACCOUNT_PATH = DATA_DIR / "account.json"
 
-def load_or_create_account():
-    if ACCOUNT_PATH.exists():
-        with open(ACCOUNT_PATH, "r") as f:
-            return json.load(f)
-    
-    name = input("Welcome! What should I call you? ")
-    account = {
-        "id" : str(uuid.uuid4()),
-        "name" : name,
-        "created_at" : datetime.now().isoformat()
-    }
-    with open(ACCOUNT_PATH, "w") as f:
-        json.dump(account, f, indent = 2)
-    return account
-
 def account_exists():
     return ACCOUNT_PATH.exists()
 
@@ -32,7 +17,3 @@ def create_account(name):
     with open(ACCOUNT_PATH, "w") as f:
         json.dump(account, f, indent = 2)
     return account
-
-if __name__ == "__main__":
-    acc = load_or_create_account()
-    print("Loaded account: ", acc)

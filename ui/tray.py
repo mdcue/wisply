@@ -1,12 +1,10 @@
 import sys
 import threading
-from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from ui.bridge import HubBridge
-from ui.popup import PopupWindow
 from ui.launcher import LauncherStrip
 from ui.hub import HubWindow
 from ui.single_instance import SingleInstance
@@ -134,7 +132,7 @@ def main():
     logsetup.setup_logging()
     background = "--background" in sys.argv
     
-    app = QApplication.instance() or QApplication(sys.argv)
+    app = QApplication.instance() or QApplication(sys.argv) #needs to exist before SingleInstance; the name keeps it alive
     single = SingleInstance()
     if single.notify_existing(show = not background):
         print("Wisply is already running.")
@@ -149,7 +147,7 @@ def main():
     threading.Thread(target = scheduler.fetch_startup_only_bots, daemon = True).start()
     
     tray_app = TrayApp()
-    tray_app.single_instance = single
+    tray_app.single_instance = single #keeps the listener alive for as long as the app runs
     single.show_requested.connect(tray_app.open_hub)
     if not background or not account.account_exists():
         tray_app.open_hub()

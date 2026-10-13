@@ -13,7 +13,7 @@ a = Analysis(
     ],
     hiddenimports=[],
     hookspath=[],
-    hooksconfig=[],
+    hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     noarchive=False,
