@@ -22,8 +22,8 @@ SLEEPY_UNTIL = 5
 #For each mood, expression, names to try in order. The first one that exists in your
 #expression folder is used, so a missing name never breaks anything.
 MOODS = {
-    "sleepy": ["sleepy", "sleeping", "tired", "yawning"],
-    "worried": ["worried", "concerned", "anxious", "nervous", "sad"],
+    "sleepy": ["sleepy", "sleeping", "tired", "yawning", "blank"],
+    "worried": ["worried", "concerned", "anxious", "nervous"],
     "happy": ["happy", "laughing", "smiling"],
     "calm": ["smiling", "happy"],
 }
