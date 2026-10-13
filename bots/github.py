@@ -94,7 +94,7 @@ def _describe(repo, extra = ""):
     return f"{text} - {description}" if description else text
 
 def _save(channel_id, repos, extra = None):
-    for repo in repos:
+    for repo in reversed(repos): #the Hub lists the newest first, so the best repo goes in last
         key = f"{channel_id}:{repo['id']}"
         if not is_new_item(key):
             continue

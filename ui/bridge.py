@@ -6,7 +6,7 @@ from pathlib import Path
 from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal, QUrl, QTimer
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QDesktopServices
-from datetime import datetime, timezone
+from datetime import datetime
 
 from core import db, account, appearance, icons
 from core.paths import DATA_DIR
@@ -162,7 +162,7 @@ class HubBridge(QObject):
                 "name": name,
                 "icon": _icon_to_data_uri(icon_path),
                 "fetch_interval": fetch_interval,
-                "last-fetched": _utc_to_local_text(last_fetched),
+                "last_fetched": _utc_to_local_text(last_fetched),
             })
         return json.dumps(wisps)
 

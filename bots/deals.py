@@ -40,7 +40,7 @@ def fetch_deals(store_names):
     response.raise_for_status()
     deals = response.json()
     
-    for deal in deals[:10]:
+    for deal in reversed(deals[:10]): #the Hub will list newest first, so the best deal goes in last
         deal_id = deal.get("dealID", "")
         if is_new_deal(deal_id):
             title = deal.get("title")
@@ -65,7 +65,7 @@ def fetch_free_games(store_names):
     response.raise_for_status()
     deals = response.json()
     
-    for deal in deals[:10]:
+    for deal in reversed(deals[:10]):
         deal_id = deal.get("dealID", "")
         if is_new_deal(deal_id):
             title = deal.get("title")
