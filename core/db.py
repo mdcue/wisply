@@ -1,178 +1,155 @@
 import sqlite3
+from collections import namedtuple
+
 from core.paths import DATA_DIR
 
 DB_PATH = DATA_DIR / "data.db"
 
+#Rows come back as named tuples. They still unpack and index like plain tuples, so existing
+#code keeps working, but new code can say bot.color instead of bot[2].
+Bot = namedtuple("Bot", "id name color active icon_path expression fetch_interval last_fetched")
+Channel = namedtuple("Channel", "id title description color")
+Item = namedtuple("Item", "id text read url price discount")
+FeedEntry = namedtuple("FeedEntry", "item_id text read url channel_id bot_id bot_name icon_path")
+
+BOT_COLUMNS = "id, name, color, active, icon_path, expression, fetch_interval_seconds, last_fetched_at"
+
+#Columns added after the first release; older databases get them on startup.
+MIGRATIONS = {
+    "bots": {
+        "active": "INTEGER DEFAULT 1",
+        "icon_path": "TEXT",
+        "expression": "TEXT DEFAULT 'smiling'",
+        "fetch_interval_seconds": "INTEGER DEFAULT 3600",
+        "last_fetched_at": "TEXT",
+    },
+    "channels": {
+        "bot_id": "TEXT",
+        "position": "INTEGER DEFAULT 0",
+    },
+    "items": {
+        "url": "TEXT",
+        "price": "REAL",
+        "discount": "INTEGER",
+    },
+}
+
 def get_connection():
     return sqlite3.connect(DB_PATH)
 
+def _read(sql, params = ()):
+    conn = get_connection()
+    try:
+        return conn.execute(sql, params).fetchall()
+    finally:
+        conn.close()
+
+def _write(sql, params = ()):
+    conn = get_connection()
+    try:
+        conn.execute(sql, params)
+        conn.commit()
+    finally:
+        conn.close()
+
 def init_db():
     conn = get_connection()
-    #For reference, a bot is the identity (name + color); channels are its feeds
-    conn.execute(
-    """CREATE TABLE IF NOT EXISTS bots (
-        id TEXT PRIMARY KEY,
-        name TEXT,
-        color TEXT
-    )
-    """)
-    conn.execute(
-    """CREATE TABLE IF NOT EXISTS channels (
-        id TEXT PRIMARY KEY,
-        title TEXT,
-        description TEXT,
-        color TEXT,
-        bot_id TEXT
-    )
-    """)
-    conn.execute(
-    """CREATE TABLE IF NOT EXISTS items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        channel_id TEXT,
-        text TEXT,
-        timestamp TEXT,
-        read INTEGER DEFAULT 0
-    )
-    """)
-    
-    columns = [row[1] for row in conn.execute("PRAGMA table_info(bots)")]
-    if "active" not in columns:
-        conn.execute("ALTER TABLE bots ADD COLUMN active INTEGER DEFAULT 1")
-    if "icon_path" not in columns:
-        conn.execute("ALTER TABLE bots ADD COLUMN icon_path TEXT")
-    if "expression" not in columns:
-        conn.execute("ALTER TABLE bots ADD COLUMN expression TEXT DEFAULT 'smiling'")
-    if "fetch_interval_seconds" not in columns:
-        conn.execute("ALTER TABLE bots ADD COLUMN fetch_interval_seconds INTEGER DEFAULT 3600")
-    if "last_fetched_at" not in columns:
-        conn.execute("ALTER TABLE bots ADD COLUMN last_fetched_at TEXT")
-    
-    columns = [row[1] for row in conn.execute("PRAGMA table_info(channels)")]
-    if "bot_id" not in columns:
-        conn.execute("ALTER TABLE channels ADD COLUMN bot_id TEXT")
-    if "position" not in columns:
-        conn.execute("ALTER TABLE channels ADD COLUMN position INTEGER DEFAULT 0")
-    item_columns = [row[1] for row in conn.execute("PRAGMA table_info(items)")]
-    if "url" not in item_columns:
-        conn.execute("ALTER TABLE items ADD COLUMN url TEXT")
-    if "price" not in item_columns:
-        conn.execute("ALTER TABLE items ADD COLUMN price REAL")
-    if "discount" not in item_columns:
-        conn.execute("ALTER TABLE items ADD COLUMN discount INTEGER")
-    conn.commit()
-    conn.close()
+    try:
+        #For reference, a bot is the identity (name + color); channels are its feeds
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS bots (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                color TEXT
+            )
+            """)
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS channels (
+                id TEXT PRIMARY KEY,
+                title TEXT,
+                description TEXT,
+                color TEXT,
+                bot_id TEXT
+            )
+            """)
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                channel_id TEXT,
+                text TEXT,
+                timestamp TEXT,
+                read INTEGER DEFAULT 0
+            )
+            """)
+            
+        for table, columns in MIGRATIONS.items():
+            existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+            for name, definition in columns.items():
+                if name not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+            
+        #these are precautions, without these every unread count, item list and duplicate check reads the whole items table
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_items_channel ON items(channel_id, id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_items_unread ON items(channel_id, read)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_items_timestamp ON items(timestamp)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_channels_bot ON channels(bot_id)")
+        conn.commit()
+    finally:
+        conn.close()
 
-#bots
+#bots (wisps)
 def add_bot(bot_id, name, color, icon_path = None):
-    conn = get_connection()
-    conn.execute(
+    _write(
         "INSERT OR IGNORE INTO bots (id, name, color, icon_path, active) VALUES (?, ?, ?, ?, 0)",
         (bot_id, name, color, icon_path)
     )
-    conn.commit()
-    conn.close()
 
 def get_bot(bot_id):
-    conn = get_connection()
-    row = conn.execute(
-        "SELECT id, name, color, active, icon_path, expression, fetch_interval_seconds, last_fetched_at "
-        "FROM bots WHERE id = ?", (bot_id,)
-    ).fetchone()
-    conn.close()
-    return row
+    rows = _read(f"SELECT {BOT_COLUMNS} FROM bots WHERE id = ?", (bot_id,))
+    return Bot(*rows[0]) if rows else None
 
 def get_all_bots():
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT id, name, color, active, icon_path, expression, fetch_interval_seconds, last_fetched_at "
-        "FROM bots ORDER BY rowid"
-    ).fetchall()
-    conn.close()
-    return rows
+    return [Bot(*row) for row in _read(f"SELECT {BOT_COLUMNS} FROM bots ORDER BY rowid")]
 
 def get_active_bots():
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT id, name, color, active, icon_path, expression, fetch_interval_seconds, last_fetched_at "
-        "FROM bots WHERE active = 1 ORDER BY rowid"
-    ).fetchall()
-    conn.close()
-    return rows
+    return [Bot(*row) for row in _read(f"SELECT {BOT_COLUMNS} FROM bots WHERE active = 1 ORDER BY rowid")]
 
 def set_fetch_interval(bot_id, seconds):
-    conn = get_connection()
-    conn.execute("UPDATE bots SET fetch_interval_seconds = ? WHERE id = ?", (seconds, bot_id))
-    conn.commit()
-    conn.close()
+    _write("UPDATE bots SET fetch_interval_seconds = ? WHERE id = ?", (seconds, bot_id))
 
 def mark_fetched(bot_id):
-    conn = get_connection()
-    conn.execute(
-        "UPDATE bots SET last_fetched_at = datetime('now') WHERE id = ?", (bot_id,)
-    )
-    conn.commit()
-    conn.close()
+    _write("UPDATE bots SET last_fetched_at = datetime('now') WHERE id = ?", (bot_id,))
 
-def update_bot (bot_id, name = None, color = None, icon_path = None, expression = None):
-    conn = get_connection()
-    if name is not None:
-        conn.execute("UPDATE bots SET name = ? WHERE id = ?", (name, bot_id))
-    if color is not None:
-        conn.execute("UPDATE bots SET color = ? WHERE id = ?", (color, bot_id))
-    if icon_path is not None:
-        conn.execute("UPDATE bots SET icon_path = ? WHERE id = ?", (icon_path, bot_id))
-    if expression is not None:
-        conn.execute("UPDATE bots SET expression = ? WHERE id = ?", (expression, bot_id))
-    conn.commit()
-    conn.close()
+def update_bot(bot_id, name = None, color = None, icon_path = None, expression = None):
+    changes = {"name": name, "color": color, "icon_path": icon_path, "expression": expression}
+    changes = {column: value for column, value in changes.items() if value is not None}
+    if not changes:
+        return
+    assignments = ", ".join(f"{column} = ?" for column in changes) #column names come from the dictionary above, never from user input
+    _write(f"UPDATE bots SET {assignments} WHERE id = ?", (*changes.values(), bot_id))
 
 def set_bot_active(bot_id, active):
-    conn = get_connection()
-    conn.execute("UPDATE bots SET active = ? WHERE id = ?", (1 if active else 0, bot_id))
-    conn.commit()
-    conn.close()
-
-def is_bot_active(bot_id):
-    conn = get_connection()
-    row = conn.execute("SELECT active FROM bots WHERE id = ?", (bot_id,)).fetchone()
-    conn.close()
-    return bool(row[0]) if row else False
+    _write("UPDATE bots SET active = ? WHERE id = ?", (1 if active else 0, bot_id))
 
 def get_bot_channels(bot_id):
-    conn = get_connection()
-    rows = conn.execute(
+    rows = _read(
         "SELECT id, title, description, color FROM channels WHERE bot_id = ? ORDER BY position, rowid",
         (bot_id,)
-    ).fetchall()
-    conn.close()
-    return rows
-
-def get_bot_for_channel(channel_id):
-    #this is for toasts, which bot does this channel belong to- to check that
-    conn = get_connection()
-    row = conn.execute(
-        "SELECT bots.id, bots.name, bots.color FROM bots "
-        "JOIN channels ON channels.bot_id = bots.id WHERE channels.id = ?",
-        (channel_id,)
-    ).fetchone()
-    conn.close()
-    return row
+    )
+    return [Channel(*row) for row in rows]
 
 def get_bot_unread(bot_id):
-    #total unread across all of a bot's channels
-    conn = get_connection()
-    count = conn.execute(
+    #total unread across all of a bot's (wisp's) channels
+    rows = _read(
         "SELECT COUNT(*) FROM items JOIN channels ON items.channel_id = channels.id "
         "WHERE channels.bot_id = ? AND items.read = 0",
         (bot_id,)
-    ).fetchone()[0]
-    conn.close()
-    return count
+    )
+    return rows[0][0]
 
-#channels (for bots)
+#channels (for bots/wisps)
 def add_channel(channel_id, title, description, color, bot_id = None, position = 0):
-    conn = get_connection()
-    conn.execute(
+    _write(
     """INSERT INTO channels (id, title, description, color, bot_id, position)
     VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
@@ -180,74 +157,41 @@ def add_channel(channel_id, title, description, color, bot_id = None, position =
         description = excluded.description,
         bot_id = COALESCE(excluded.bot_id, channels.bot_id),
         position = excluded.position
-    """,(channel_id, title, description, color, bot_id, position)
-    )#COALESCE keeps an existing bot_id when a caller doesn't pass one.
-    conn.commit()
-    conn.close()
-
-def update_channel(channel_id, title = None, color = None):
-    conn = get_connection()
-    if title is not None:
-        conn.execute("UPDATE channels SET title = ? WHERE id = ?", (title, channel_id))
-    if color is not None:
-        conn.execute("UPDATE channels SET color = ? WHERE id = ?", (color, channel_id))
-    conn.commit()
-    conn.close()
-
-def get_channel(channel_id):
-    conn = get_connection()
-    row = conn.execute(
-        "SELECT id, title, description, color FROM channels WHERE id = ?",
-        (channel_id,)
-    ).fetchone()
-    conn.close()
-    return row
-
-def get_all_channels():
-    conn = get_connection()
-    rows = conn.execute("SELECT id, title, description, color FROM channels").fetchall()
-    conn.close()
-    return rows
+    """, (channel_id, title, description, color, bot_id, position)
+    ) #COALESCE keeps an existing bot_id when a caller doesn't pass one-
 
 #items for the database
 def add_item(channel_id, text, timestamp, url = None, price = None, discount = None):
-    conn = get_connection()
-    conn.execute(
+    _write(
         "INSERT INTO items (channel_id, text, timestamp, url, price, discount) VALUES (?, ?, ?, ?, ?, ?)",
         (channel_id, text, timestamp, url, price, discount)
     )
-    conn.commit()
-    conn.close()
 
 def get_unread_count(channel_id):
-    conn = get_connection()
-    count = conn.execute(
-        "SELECT COUNT(*) FROM items WHERE channel_id = ? AND read = 0",
-        (channel_id,)
-    ).fetchone()[0]
-    conn.close()
-    return count
+    return _read("SELECT COUNT(*) FROM items WHERE channel_id = ? AND read = 0", (channel_id,))[0][0]
 
-def get_items(channel_id):
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT id, text, read, url, price, discount FROM items WHERE channel_id = ? ORDER BY id DESC",
-        (channel_id,)
-    ).fetchall()
-    conn.close()
-    return rows
+def get_items(channel_id, limit = None):
+    """A channel's items, newest first. `limit` caps how many come back (None means all)."""
+    rows = _read(
+        "SELECT id, text, read, url, price, discount FROM items WHERE channel_id = ? ORDER BY id DESC LIMIT ?",
+        (channel_id, -1 if limit is None else limit)
+    )
+    return [Item(*row) for row in rows]
+
+def get_recent_items(limit = 30):
+    """The newest items across every active wisp, newest first each with the wisp it came from."""
+    rows = _read(
+        "SELECT items.id, items.text, items.read, items.url, items.channel_id, "
+        "bots.id, bots.name, bots.icon_path "
+        "FROM items JOIN channels ON items.channel_id = channels.id "
+        "JOIN bots ON channels.bot_id = bots.id "
+        "WHERE bots.active = 1 ORDER BY items.id DESC LIMIT ?",
+        (limit,)
+    )
+    return [FeedEntry(*row) for row in rows]
 
 def mark_read(item_id):
-    conn = get_connection()
-    conn.execute("UPDATE items SET read = 1 WHERE id = ?", (item_id,))
-    conn.commit()
-    conn.close()
+    _write("UPDATE items SET read = 1 WHERE id = ?", (item_id,))
 
 def mark_all_read(channel_id):
-    conn = get_connection()
-    conn.execute(
-        "UPDATE items SET read = 1 WHERE channel_id = ? AND read = 0",
-        (channel_id,)
-    )
-    conn.commit()
-    conn.close()
+    _write("UPDATE items SET read = 1 WHERE channel_id = ? AND read = 0", (channel_id,))

@@ -1,6 +1,7 @@
 import threading
 import time
 import traceback
+from datetime import datetime, timezone
 
 from core import db
 from bots.registry import ALL_BOTS
@@ -24,23 +25,39 @@ def _fetch_safely(bot):
     db.mark_fetched(bot.BOT_ID)
     return True
 
+def _seconds_since(utc_text):
+    """Seconds since a time saved by SQLite's datetime('now'), which is UTC."""
+    then = datetime.strptime(utc_text, "%Y-%m-%d %H:%M:%S").replace(tzinfo = timezone.utc)
+    return (datetime.now(timezone.utc) - then).total_seconds()
+
+def _is_due(bot_row):
+    """True once a wisp's check interval has passed. Wisps set to 'only on startup' (0) are never due here."""
+    if bot_row.fetch_interval == 0:
+        return False
+    if bot_row.last_fetched is None:
+        return True
+    try:
+        return _seconds_since(bot_row.last_fetched) >= bot_row.fetch_interval
+    except ValueError:
+        return True
+
 def run_tick(on_complete = None):
     try:
         for bot in ALL_BOTS:
             try:
-                bot.register()
-                if not db.is_bot_active(bot.BOT_ID):
+                bot_row = db.get_bot(bot.BOT_ID)
+                if not bot_row or not bot_row.active:
                     continue
                 if time.time() < _retry_not_before.get(bot.BOT_ID, 0):
                     continue
-                if not _is_due(bot.BOT_ID):
+                if not _is_due(bot_row):
                     continue
                 print(f"Fetching {bot.BOT_ID}...")
                 if _fetch_safely(bot):
                     print(f"Unread for {bot.BOT_ID}:", db.get_bot_unread(bot.BOT_ID))
             except Exception:
                 traceback.print_exc()
-        
+                
         if on_complete:
             on_complete()
     except Exception:
@@ -48,37 +65,14 @@ def run_tick(on_complete = None):
     finally:
         schedule_next(on_complete)
 
-def _is_due(bot_id):
-    bot = db.get_bot(bot_id)
-    if not bot:
-        return False
-    interval = bot[6]
-    last_fetched_at = bot[7]
-    
-    if interval == 0:
-        return False
-    
-    if last_fetched_at is None:
-        return True
-    
-    conn = db.get_connection()
-    row = conn.execute(
-        "SELECT (strftime('%s', 'now') - strftime('%s', ?)) >= ?",
-        (last_fetched_at, interval)
-    ).fetchone()
-    conn.close()
-    return bool(row[0])
-
 def fetch_startup_only_bots():
-    """Called once at app launch for wisps set to 'only on startup'."""
+    """Called once at the app launch for wisps set to 'only on startup'."""
     for bot in ALL_BOTS:
         try:
-            bot.register()
-            if db.is_bot_active(bot.BOT_ID):
-                bot_row = db.get_bot(bot.BOT_ID)
-                if bot_row and bot_row[6] == 0:
-                    print(f"Startup-only fetch for {bot.BOT_ID}...")
-                    _fetch_safely(bot)
+            bot_row = db.get_bot(bot.BOT_ID)
+            if bot_row and bot_row.active and bot_row.fetch_interval == 0:
+                print(f"Startup-only fetch for {bot.BOT_ID}...")
+                _fetch_safely(bot)
         except Exception:
             traceback.print_exc()
 

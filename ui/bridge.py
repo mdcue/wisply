@@ -60,7 +60,7 @@ class HubBridge(QObject):
         channels = []
         for channel_id, title, _desc, color in db.get_bot_channels(bot_id):
             items = []
-            for item_id, text, read, url, price, discount in db.get_items(channel_id)[:10]:
+            for item_id, text, read, url, price, discount in db.get_items(channel_id, limit = 10):
                 items.append({
                     "id": item_id, "text": text, "read": bool(read), "url": url or "",
                     "price": price, "discount": discount,
@@ -110,10 +110,12 @@ class HubBridge(QObject):
     def fetch_now(self, bot_id):
         module = BOT_MODULES.get(bot_id)
         if module:
-            threading.Thread(target = self._manual_fetch, args = (bot_id, module), daemon = True).start()
+            threading.Thread(target = self._run_fetch, args = (bot_id, module, "Manual check"), daemon = True).start()
     
-    def _manual_fetch(self, bot_id, module):
-        print(f"Manual check for {bot_id}...")
+    def _run_fetch(self, bot_id, module, reason):
+        """Fetches one wisp on a background thread, records when it was checked, and tells
+        the page how it went."""
+        print(f"{reason} for {bot_id}...")
         before = db.get_bot_unread(bot_id)
         ok = False
         try:
@@ -124,7 +126,7 @@ class HubBridge(QObject):
             traceback.print_exc()
         finally:
             after = db.get_bot_unread(bot_id)
-            print(f"Manual check for {bot_id} {'finished' if ok else 'failed'}. Unread: {after}")
+            print(f"{reason} for {bot_id} {'finished' if ok else 'failed'}. Unread: {after}")
             self.dataChanged.emit()
             self.fetchFinished.emit(bot_id, ok, max(0, after - before))
     
@@ -168,22 +170,21 @@ class HubBridge(QObject):
 
     @pyqtSlot(result = str)
     def get_activity_feed(self):
+        icons_by_bot = {}
         feed = []
-        for bot_id, name, color, active, icon_path, expression, fetch_interval, last_fetched in db.get_active_bots():
-            icon = _icon_to_data_uri(icon_path)
-            for channel_id, title, _desc, _color in db.get_bot_channels(bot_id):
-                for item_id, text, read, url, price, discount in db.get_items(channel_id):
-                    feed.append({
-                        "item_id": item_id,
-                        "text": text,
-                        "read": bool(read),
-                        "url": url or "",
-                        "wisp_name": name,
-                        "wisp_icon": icon,
-                        "channel_id": channel_id,
-                    })
-        feed.sort(key = lambda x: x["item_id"], reverse = True)
-        return json.dumps(feed[:30])
+        for entry in db.get_recent_items(30):
+            if entry.bot_id not in icons_by_bot:
+                icons_by_bot[entry.bot_id] = _icon_to_data_uri(entry.icon_path)
+            feed.append({
+                "item_id": entry.item_id,
+                "text": entry.text,
+                "read": bool(entry.read),
+                "url": entry.url or "",
+                "wisp_name": entry.bot_name,
+                "wisp_icon": icons_by_bot[entry.bot_id],
+                "channel_id": entry.channel_id,
+            })
+        return json.dumps(feed)
     
     @pyqtSlot(str, int)
     def set_fetch_interval(self, bot_id, seconds):
@@ -202,7 +203,7 @@ class HubBridge(QObject):
         if new_state:
             module = BOT_MODULES.get(bot_id)
             if module:
-                threading.Thread(target = self._fetch_then_notify, args = (module,), daemon = True).start()
+                threading.Thread(target = self._run_fetch, args = (bot_id, module, "Activation check"), daemon = True).start()
         
         return new_state
         
