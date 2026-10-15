@@ -3,6 +3,7 @@ import calendar
 from datetime import datetime, timedelta
 
 from core import db, appearance, icons
+from bots.common import register_wisp
 
 BOT_ID = "companion"
 BOT_NAME = "Companion"
@@ -52,17 +53,16 @@ def _ensure_table():
         )"""
     )
 
+CHANNELS = [
+    (TODAY, "Today", "Reminders that are due, and what is coming up", "#ff7a59"),
+    (IDEAS, "Idea of the day", "One of your saved ideas, picked each morning", "#f5c542"),
+]
+
 def register():
     _ensure_table()
-    is_new = db.get_bot(BOT_ID) is None
-    db.add_bot(BOT_ID, BOT_NAME, BOT_COLOR)
-    if is_new:
-        appearance.set_bot_appearance(BOT_ID, color = BOT_COLOR, expression = "smiling")
-    db.add_channel(TODAY, "Today", "Reminders that are due, and what is coming up", "#ff7a59", bot_id = BOT_ID, position = 0)
-    db.add_channel(IDEAS, "Idea of the day", "One of your saved ideas, picked each morning", "#f5c542", bot_id = BOT_ID, position = 1)
+    register_wisp(BOT_ID, BOT_NAME, BOT_COLOR, CHANNELS)
 
 # storing notes
-
 def add_reminder(text, due, repeat = "none"):
     _connect_and_run(
         "INSERT INTO companion_notes (kind, text, due_at, repeat_rule, created_at) VALUES ('reminder', ?, ?, ?, ?)",
@@ -111,13 +111,6 @@ def _next_due(due, rule, now):
 
 #making the items
 
-def is_new_item(key):
-    conn = db.get_connection()
-    cur = conn.execute("SELECT COUNT(*) FROM items WHERE timestamp = ?", (key,))
-    exists = cur.fetchone()[0] > 0
-    conn.close()
-    return not exists
-
 def _fire_reminders(now):
     rows = _connect_and_run(
         "SELECT id, text, due_at, repeat_rule FROM companion_notes "
@@ -130,13 +123,13 @@ def _fire_reminders(now):
         
         if due.date() == tomorrow:
             key = f"rem:{note_id}:{due_at}:eve"
-            if is_new_item(key):
+            if not db.has_item(key):
                 db.add_item(TODAY, f"Tomorrow at {due:%H:%M}: {text}", key, url = None, price = None, discount = None)
         
         if due > now:
             continue
         key = f"rem:{note_id}:{due_at}"
-        if is_new_item(key):
+        if not db.has_item(key):
             late = now - due > timedelta(minutes = LATE_MINUTES)
             when = f" (was due {due:%a %d %b, %H:%M})" if late else ""
             db.add_item(TODAY, f"Due: {text}{when}", key, url = None, price = None, discount = None)
@@ -153,7 +146,7 @@ def _surface_idea(now):
     if now.hour < IDEA_HOUR:
         return
     key = f"idea:{now:%Y-%m-%d}"
-    if not is_new_item(key):
+    if db.has_item(key):
         return
     rows = _connect_and_run(
         "SELECT id, text FROM companion_notes WHERE kind = 'idea' "

@@ -4,10 +4,11 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
-from core import db, appearance
+from core import db
+from bots.common import USER_AGENT, register_wisp
 
 HEADERS = {
-    "User-Agent": "wisply/1.0 (contact@example.com)", #placeholder for real contact
+    "User-Agent": USER_AGENT,
     "Accept": "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
 }
@@ -36,12 +37,7 @@ CHANNELS = [
 ]
 
 def register():
-    is_new = db.get_bot(BOT_ID) is None
-    db.add_bot(BOT_ID, BOT_NAME, BOT_COLOR)
-    if is_new:
-        appearance.set_bot_appearance(BOT_ID, color = BOT_COLOR, expression = "smiling")
-    for position, (channel_id, title, desc, color) in enumerate(CHANNELS):
-        db.add_channel(channel_id, title, desc, color, bot_id = BOT_ID, position = position)
+    register_wisp(BOT_ID, BOT_NAME, BOT_COLOR, CHANNELS)
 
 def _since(days):
     return (datetime.now(timezone.utc) - timedelta(days = days)).date().isoformat()
@@ -58,13 +54,6 @@ def _search(query, per_page):
         raise RuntimeError(f"GitHub refused the request (status {response.status_code}, limit resets at epoch {reset})")
     response.raise_for_status()
     return response.json().get("items", [])
-
-def is_new_item(key):
-    conn = db.get_connection()
-    curr = conn.execute("SELECT COUNT(*) FROM items WHERE timestamp = ?", (key,))
-    exists = curr.fetchone()[0] > 0
-    conn.close()
-    return not exists
 
 def _shorten(text, limit):
     text = (text or "").strip()
@@ -96,7 +85,7 @@ def _describe(repo, extra = ""):
 def _save(channel_id, repos, extra = None):
     for repo in reversed(repos): #the Hub lists the newest first, so the best repo goes in last
         key = f"{channel_id}:{repo['id']}"
-        if not is_new_item(key):
+        if db.has_item(key):
             continue
         suffix = extra(repo) if extra else ""
         db.add_item(channel_id, _describe(repo, suffix), key, url = repo["html_url"], price = None, discount = repo["stargazers_count"])

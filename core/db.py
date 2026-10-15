@@ -190,6 +190,10 @@ def get_recent_items(limit = 30):
     )
     return [FeedEntry(*row) for row in rows]
 
+def has_item(key):
+    """True if an item with this duplicate-check key is already sorted, in any channel."""
+    return bool(_read("SELECT 1 FROM items WHERE timestamp = ? LIMIT 1", (key,)))
+
 def mark_read(item_id):
     _write("UPDATE items SET read = 1 WHERE id = ?", (item_id,))
 
