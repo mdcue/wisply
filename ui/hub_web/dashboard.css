@@ -402,6 +402,12 @@ body {
     filter: brightness(1.15);
 }
 
+.small-btn.ghost {
+    background-color: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--input-border);
+}
+
 .small-btn:disabled {
     opacity: 0.4;
     cursor: default;
@@ -415,21 +421,50 @@ body {
 
 .channel-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     margin-bottom: 6px;
     gap: 6px;
 }
 
 .channel-title {
-    flex: 1;
+    flex: 1 1 120px;
     font-size: 12px;
     font-weight: 700;
 }
 
 .channel-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     font-size: 13px;
     padding: 4px 0;
     color: var(--text);
+}
+
+.channel-item-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.item-dismiss {
+    flex: none;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-faint);
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 5px;
+    border-radius: 4px;
+    opacity: 0.6;
+}
+
+.item-dismiss:hover {
+    opacity: 1;
+    color: var(--text);
+    background: var(--card-hover-bg);
 }
 
 .channel-item.read {

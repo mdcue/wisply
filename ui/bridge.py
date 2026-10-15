@@ -79,6 +79,16 @@ class HubBridge(QObject):
         db.mark_all_read(channel_id)
         self.dataChanged.emit()
     
+    @pyqtSlot(int)
+    def dismiss_item(self, item_id):
+        db.dismiss_item(item_id)
+        self.dataChanged.emit()
+    
+    @pyqtSlot(str)
+    def clear_read(self, channel_id):
+        db.dismiss_read(channel_id)
+        self.dataChanged.emit()
+    
     @pyqtSlot(int, str)
     def open_item(self, item_id, url):
         db.mark_read(item_id)
@@ -162,6 +172,7 @@ class HubBridge(QObject):
             wisps.append({
                 "id": bot_id,
                 "name": name,
+                "color": color,
                 "icon": _icon_to_data_uri(icon_path),
                 "fetch_interval": fetch_interval,
                 "last_fetched": _utc_to_local_text(last_fetched),

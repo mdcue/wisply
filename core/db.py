@@ -31,6 +31,7 @@ MIGRATIONS = {
         "url": "TEXT",
         "price": "REAL",
         "discount": "INTEGER",
+        "dismissed": "INTEGER DEFAULT 0",
     },
 }
 
@@ -173,7 +174,7 @@ def get_unread_count(channel_id):
 def get_items(channel_id, limit = None):
     """A channel's items, newest first. `limit` caps how many come back (None means all)."""
     rows = _read(
-        "SELECT id, text, read, url, price, discount FROM items WHERE channel_id = ? ORDER BY id DESC LIMIT ?",
+        "SELECT id, text, read, url, price, discount FROM items WHERE channel_id = ? AND dismissed = 0 ORDER BY id DESC LIMIT ?",
         (channel_id, -1 if limit is None else limit)
     )
     return [Item(*row) for row in rows]
@@ -185,7 +186,7 @@ def get_recent_items(limit = 30):
         "bots.id, bots.name, bots.icon_path "
         "FROM items JOIN channels ON items.channel_id = channels.id "
         "JOIN bots ON channels.bot_id = bots.id "
-        "WHERE bots.active = 1 ORDER BY items.id DESC LIMIT ?",
+        "WHERE bots.active = 1 AND items.dismissed = 0 ORDER BY items.id DESC LIMIT ?",
         (limit,)
     )
     return [FeedEntry(*row) for row in rows]
@@ -199,3 +200,12 @@ def mark_read(item_id):
 
 def mark_all_read(channel_id):
     _write("UPDATE items SET read = 1 WHERE channel_id = ? AND read = 0", (channel_id,))
+
+def dismiss_item(item_id):
+    """Removes an item from every list for good. It is also marked read. The row stays, with
+    its duplicate-check key, so the same item is never added again."""
+    _write("UPDATE items SET read = 1, dismissed = 1 WHERE id = ?", (item_id,))
+
+def dismiss_read(channel_id):
+    """Removes every read item in a channel from view (see dismiss_item)."""
+    _write("UPDATE items SET dismissed = 1 WHERE channel_id = ? AND read = 1", (channel_id,))

@@ -54,15 +54,6 @@ function onFetchFinished(wispId, ok, newCount) {
     }, 15000);
 }
 
-function updateAccentColor() {
-    bridge.get_wisps(function (json) {
-        const wisps = JSON.parse(json);
-        const activeWisp = wisps.find(function (w) { return w.active; });
-        const accent = activeWisp ? activeWisp.color : "#3a7dd8";
-        document.documentElement.style.setProperty("--accent", accent);
-    });
-}
-
 function showNotificationBanner(wispName, count) {
     const banner = document.getElementById("notification-banner");
     if (!banner) return;
@@ -97,6 +88,19 @@ function readableTextColor(hex) {
         return `rgb(${Math.min(255, Math.round(r + (255 - r) * 0.6))}, ${Math.min(255, Math.round(g + (255 - g) * 0.6))}, ${Math.min(255, Math.round(b + (255 - b) * 0.6))})`;
     }
     return hex;
+}
+
+function textOnColor(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.6 ? "#1a1a1a" : "#ffffff";
+}
+
+function colorButton(button, color) {
+    button.style.backgroundColor = color;
+    button.style.color = textOnColor(color);
 }
 
 function applyTheme(theme) {
@@ -191,8 +195,7 @@ function showMainHub() {
     document.getElementById("app-shell").style.display = "block";
     document.getElementById("theme-toggle").onclick = toggleTheme;
     document.getElementById("open-data-btn").onclick = function () { bridge.open_data_folder(); };
-    setupQuitButtons();
-    updateAccentColor();
+    setupQuitButtons();;
     setupTabs();
     switchTab(currentTab);
 }
@@ -332,7 +335,6 @@ function renderWisps() {
                     if (!newState && expandedId === wisp.id) {
                         expandedId = null;
                     }
-                    updateAccentColor();
                     renderWisps();
                 });
             };
@@ -427,6 +429,7 @@ function renderSettings() {
             const fetchBtn = document.createElement("button");
             fetchBtn.className = "small-btn";
             fetchBtn.textContent = "Check now";
+            colorButton(fetchBtn, wisp.color);
             fetchBtn.onclick = function () {
                 fetchBtn.disabled = true;
                 fetchBtn.textContent = "Checking...";
@@ -454,7 +457,7 @@ function buildManagePanel(wisp) {
     const renameBtn = document.createElement("button");
     renameBtn.className = "small-btn";
     renameBtn.textContent = "Save";
-    renameBtn.style.backgroundColor = wisp.color;
+    colorButton(renameBtn, wisp.color);
     renameBtn.onclick = function () {
         bridge.rename_wisp(wisp.id, renameInput.value, function () { renderWisps(); });
     };
@@ -471,7 +474,6 @@ function buildManagePanel(wisp) {
     colorInput.value = wisp.color;
     colorInput.onchange = function () {
         bridge.recolor_wisp(wisp.id, colorInput.value, function () {
-            updateAccentColor();
             renderWisps();
         });
     };
@@ -560,11 +562,20 @@ function buildChannelBlock(channel) {
     markBtn.className = "small-btn";
     markBtn.textContent = "Mark all read";
     markBtn.disabled = channel.unread === 0;
-    markBtn.style.backgroundColor = channel.color;
+    colorButton(markBtn, channel.color);
     markBtn.onclick = function () {
         bridge.mark_all_read(channel.id, function () { renderWisps(); });
     };
     head.appendChild(markBtn);
+
+    const clearBtn = document.createElement("button");
+    clearBtn.className = "small-btn ghost";
+    clearBtn.textContent = "Clear read";
+    clearBtn.disabled = !channel.items.some(function (item) { return item.read; });
+    clearBtn.onclick = function () {
+        bridge.clear_read(channel.id, function () { renderWisps(); });
+    };
+    head.appendChild(clearBtn);
     block.appendChild(head);
 
     const items = sortChannelItems(channel.items, sortMode);
@@ -579,18 +590,31 @@ function buildChannelBlock(channel) {
     items.forEach(function (item) {
         const row = document.createElement("div");
         row.className = "channel-item" + (item.read ? " read" : "");
+
+        const body = document.createElement("div")
+        body.className = "channel-item-text";
         if (item.url) {
             const a = document.createElement("a");
             a.href = "#";
             a.textContent = item.text;
             a.onclick = function (e) {
-                e.preventDefault(); //stops the embedded page from navigating away
+                e.preventDefault(); //this will stop the embedded page from navigating away
                 bridge.open_item(item.id, item.url, function () { renderWisps(); });
             };
-            row.appendChild(a);
+            body.appendChild(a);
         } else {
-            row.textContent = item.text;
+            body.textContent = item.text;
         }
+        row.appendChild(body);
+
+        const dismiss = document.createElement("button");
+        dismiss.className = "item-dismiss";
+        dismiss.textContent = "×";
+        dismiss.title = "Remove";
+        dismiss.onclick = function () {
+            bridge.dismiss_item(item.id, function () { renderWisps(); });
+        };
+        row.appendChild(dismiss);
         block.appendChild(row);
     });
 
