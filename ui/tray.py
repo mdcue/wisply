@@ -16,6 +16,13 @@ ASSETS_DIR = BASE_DIR / "ui" / "assets"
 ICON_PLAIN = ASSETS_DIR / "icon.png"
 ICON_BADGE = ASSETS_DIR / "icon_badge.png"
 
+def set_app_identity(app):
+    """Gives Windows our own identity, so the taskbar shows the Wisply icon instead of Python's."""
+    if sys.platform == "win32":
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Wisply.App")
+    app.setWindowIcon(QIcon(str(ICON_PLAIN)))
+
 class SchedulerSignals(QObject):
     cycle_complete = pyqtSignal()
 
@@ -133,6 +140,7 @@ def main():
     background = "--background" in sys.argv
     
     app = QApplication.instance() or QApplication(sys.argv) #needs to exist before SingleInstance; the name keeps it alive
+    set_app_identity(app)
     single = SingleInstance()
     if single.notify_existing(show = not background):
         print("Wisply is already running.")

@@ -11,7 +11,7 @@ from core import db, appearance
 
 POPUP_WIDTH = 300
 SCREEN_MARGIN = 8
-MAX_ITEMS_HEIGHT = 150
+MAX_ITEMS_HEIGHT = 240
 ITEM_ROW_ESTIMATE = 40
 HEADER_ICON_SIZE = 28
 
@@ -81,6 +81,7 @@ class PopupWindow(QWidget):
         self.bot_id_filter = bot_id
         self.popup_style = popup_style
         self.expanded_id = None
+        self.expanded_channel = None
         self.anchor = (0, 0)
         
         if self.popup_style:
@@ -154,12 +155,24 @@ class PopupWindow(QWidget):
         return header
     
     def _build_bot_section(self, bot_id):
-        section, section_layout = make_container(spacing = 8)
-        for channel_id, title, _desc, color in db.get_bot_channels(bot_id):
-            section_layout.addWidget(self._build_channel_block(channel_id, title, color))
+        section, section_layout = make_container(spacing = 6)
+        channels = db.get_bot_channels(bot_id)
+        open_id = self._channel_to_open([channel[0] for channel in channels])
+        for channel_id, title, _desc, color in channels:
+            section_layout.addWidget(self._build_channel_block(channel_id, title, color, channel_id == open_id))
         return section
     
-    def _build_channel_block(self, channel_id, title, color):
+    def _channel_to_open(self, channel_ids):
+        """Only one channel of a wisp is open at a time, so a wisp with many channels stays
+        short. Defaults to the first channel that has something unread."""
+        if self.expanded_channel in channel_ids:
+            return self.expanded_channel
+        for channel_id in channel_ids:
+            if db.get_unread_count(channel_id) > 0:
+                return channel_id
+        return channel_ids[0] if channel_ids else None
+    
+    def _build_channel_block(self, channel_id, title, color, is_open):
         block, block_layout = make_container(spacing = 4)
         unread = db.get_unread_count(channel_id)
         
@@ -168,14 +181,19 @@ class PopupWindow(QWidget):
         top_layout = QHBoxLayout(top)
         top_layout.setContentsMargins(0, 0, 0, 0)
         
-        label = QLabel(f"{title}  .  {unread} unread")
-        label.setStyleSheet(CHANNEL_LABEL_STYLE.format(color = color))
+        arrow = "▾" if is_open else "▸"
+        label = QPushButton(f"{arrow} {title}  .  {unread} unread")
+        label.setCursor(Qt.CursorShape.PointingHandCursor)
+        label.setStyleSheet(CHANNEL_LABEL_STYLE.format(color = color) + "text-align: left; border: none; padding: 2px 0; background: transparent;")
+        label.clicked.connect(lambda _c = False, cid = channel_id: self.open_channel(cid))
         top_layout.addWidget(label)
         top_layout.addStretch()
-        top_layout.addWidget(self._build_mark_button(channel_id, unread))
+        if is_open:
+            top_layout.addWidget(self._build_mark_button(channel_id, unread))
         
         block_layout.addWidget(top)
-        block_layout.addWidget(self._build_items_list(channel_id, db.get_items(channel_id)))
+        if is_open:
+            block_layout.addWidget(self._build_items_list(channel_id, db.get_items(channel_id)))
         return block
     
     def _build_mark_button(self, channel_id, unread):
@@ -222,6 +240,10 @@ class PopupWindow(QWidget):
         scroll.setWidget(inner)
         scroll.setFixedHeight(min(MAX_ITEMS_HEIGHT, ITEM_ROW_ESTIMATE * max(1, len(items))))
         return scroll
+    
+    def open_channel(self, channel_id):
+        self.expanded_channel = channel_id
+        self.rebuild()
     
     def toggle_bot(self, bot_id):
         self.expanded_id = None if self.expanded_id == bot_id else bot_id
@@ -298,6 +320,7 @@ class PopupWindow(QWidget):
     def show_near(self, x, y):
         self.anchor = (x, y)
         self.expanded_id = None
+        self.expanded_channel = None
         self.rebuild()
         self.show()
         self.activateWindow()
