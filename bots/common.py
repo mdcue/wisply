@@ -2,7 +2,7 @@ from core import db, appearance
 
 #sent with every web request so the sites we call can tell who is asking. Replace the
 #contact before release; this is the only place it lives.
-USER_AGENT = "wisply/1.0 (your-real-contact-here)"
+USER_AGENT = "wisply/1.0 (+https://github.com/mdcue/wisply)"
 
 def register_wisp(bot_id, name, color, channels, expression = "smiling"):
     """Adds a wisp and its channels. `channels` is a list of (id, title, description, color),
