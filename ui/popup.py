@@ -12,7 +12,8 @@ from core import db, appearance
 POPUP_WIDTH = 300
 SCREEN_MARGIN = 8
 MAX_ITEMS_HEIGHT = 240
-ITEM_ROW_ESTIMATE = 40
+POPUP_MAX_ITEMS = 30
+ITEM_ROW_ESTIMATES = 40
 HEADER_ICON_SIZE = 28
 
 UNREAD_COLOUR = "#ffffff"
@@ -31,7 +32,7 @@ MARK_BUTTON_STYLE = (
     "background-color: rgba(255, 255, 255, 10);"
 )
 ITEM_STYLE = "color: {colour}; padding: 4px 6px;"
-ITEM_HOVER_STYLE = "background-color: rgba(255, 255, 255, 25); border-radius: 4px;"
+ITEM_HOVER_STYLE = "background-color: rgba(255, 255, 255, 48); border-radius: 4px;"
 EMPTY_STYLE = "color: #888; padding: 6px;"
 EMPTY_STATE_STYLE = "color: #888; padding: 12px; font-size: 13px;"
 MENU_STYLE = (
@@ -60,19 +61,61 @@ def make_container(spacing):
     return widget, layout
 
 class ItemLabel(QLabel):
-    """A QLabel that highlights on hover and (if it holds a url) is clickable."""
+    """A QLabel that highlights on hover and (if it holds a url) is clickable. Both looks are
+    in its stylesheet from the start, so moving the mouse never restyles it."""
     def __init__(self, base_style):
         super().__init__()
-        self.base_style = base_style
-        self.setStyleSheet(self.base_style)
-    
-    def enterEvent(self, event):
-        self.setStyleSheet(self.base_style + ITEM_HOVER_STYLE)
-        super().enterEvent(event)
-    
-    def leaveEvent(self, event):
-        self.setStyleSheet(self.base_style)
-        super().leaveEvent(event)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+        self.setStyleSheet(f"ItemLabel {{ {base_style} }} ItemLabel:hover {{ {ITEM_HOVER_STYLE} }}")
+
+class ChannelBlock(QWidget):
+    """One channel of a wisp inside the popup: a header you click to open it, and its list of
+    items. The list is built the first time the channel is opened and kept, so switching
+    channels only shows and hides widgets instead of rebuilding the whole popup."""
+    def __init__(self, popup, channel_id, title, color, unread, items, list_height):
+        super().__init__()
+        self.popup = popup
+        self.channel_id = channel_id
+        self.title = title
+        self.unread = unread
+        self.items = items
+        self.list_height = list_height
+        self.items_widget = None
+        self.setStyleSheet(TRANSPARENT)
+        
+        self.layout_ = QVBoxLayout(self)
+        self.layout_.setContentsMargins(0, 0, 0, 0)
+        self.layout_.setSpacing(4)
+        
+        top = QWidget()
+        top.setStyleSheet(TRANSPARENT)
+        top_layout = QHBoxLayout(top)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.header = QPushButton()
+        self.header.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.header.setStyleSheet(CHANNEL_LABEL_STYLE.format(color = color) + "text-align: left; border: none; padding: 2px 0; background: transparent;")
+        self.header.clicked.connect(lambda _c = False: popup.open_channel(channel_id))
+        top_layout.addWidget(self.header)
+        top_layout.addStretch()
+        self.mark_button = popup._build_mark_button(channel_id, unread)
+        keep_space = self.mark_button.sizePolicy()
+        keep_space.setRetainSizeWhenHidden(True)
+        self.mark_button.setSizePolicy(keep_space)
+        top_layout.addWidget(self.mark_button)
+        self.layout_.addWidget(top)
+        
+        self.set_open(False)
+
+    def set_open(self, is_open):
+        arrow = "▾" if is_open else "▸"
+        self.header.setText(f"{arrow} {self.title}  .  {self.unread} unread")
+        self.mark_button.setVisible(is_open)
+        if is_open and self.items_widget is None:
+            self.items_widget = self.popup._build_items_list(self.channel_id, self.items, self.list_height)
+            self.layout_.addWidget(self.items_widget)
+        if self.items_widget is not None:
+            self.items_widget.setVisible(is_open)
 
 class PopupWindow(QWidget):
     def __init__(self, on_unread_changed = None, bot_id = None, popup_style = True):
@@ -82,6 +125,7 @@ class PopupWindow(QWidget):
         self.popup_style = popup_style
         self.expanded_id = None
         self.expanded_channel = None
+        self.channel_blocks = {}
         self.anchor = (0, 0)
         
         if self.popup_style:
@@ -99,7 +143,7 @@ class PopupWindow(QWidget):
         title = QLabel("wisply")
         title.setStyleSheet(TITLE_STYLE)
         self.layout_.addWidget(title)
-    
+        
     def changeEvent(self, event):
         if event.type() == QEvent.Type.ActivationChange:
             if not self.popup_style and not self.isActiveWindow():
@@ -116,11 +160,12 @@ class PopupWindow(QWidget):
     def _bots_to_show(self):
         if self.bot_id_filter:
             bot = db.get_bot(self.bot_id_filter)
-            return [bot] if bot and bot[3] else [] #bot[3] is "active" - still hide it if somehow paused
+            return [bot] if bot and bot[3] else [] #bot[3] refers to "active" - still does hide it if somehow paused
         return db.get_active_bots() #hides inactive bots
     
     def refresh(self):
         self._clear_rows()
+        self.channel_blocks = {}
         bots = self._bots_to_show()
         
         if not bots:
@@ -157,44 +202,31 @@ class PopupWindow(QWidget):
     def _build_bot_section(self, bot_id):
         section, section_layout = make_container(spacing = 6)
         channels = db.get_bot_channels(bot_id)
-        open_id = self._channel_to_open([channel[0] for channel in channels])
+        items_by_channel = {channel[0]: db.get_items(channel[0], limit = POPUP_MAX_ITEMS) for channel in channels}
+        unread_by_channel = {channel[0]: db.get_unread_count(channel[0]) for channel in channels}
+        open_id = self._channel_to_open(unread_by_channel)
+        self.expanded_channel = open_id #stays open if the popup is rebuilt, e.g. after "Mark all read"
+        
+        #Every channel's list gets the height of the tallest, so switching channels never changes the window's size
+        tallest = max((len(items) for items in items_by_channel.values()), default = 1)
+        list_height = min(MAX_ITEMS_HEIGHT, ITEM_ROW_ESTIMATES * max(1, tallest))
+        
         for channel_id, title, _desc, color in channels:
-            section_layout.addWidget(self._build_channel_block(channel_id, title, color, channel_id == open_id))
+            block = ChannelBlock(self, channel_id, title, color, unread_by_channel[channel_id], items_by_channel[channel_id], list_height)
+            block.set_open(channel_id == open_id)
+            self.channel_blocks[channel_id] = block
+            section_layout.addWidget(block)
         return section
     
-    def _channel_to_open(self, channel_ids):
+    def _channel_to_open(self, unread_by_channel):
         """Only one channel of a wisp is open at a time, so a wisp with many channels stays
         short. Defaults to the first channel that has something unread."""
-        if self.expanded_channel in channel_ids:
+        if self.expanded_channel in unread_by_channel:
             return self.expanded_channel
-        for channel_id in channel_ids:
-            if db.get_unread_count(channel_id) > 0:
+        for channel_id, unread in unread_by_channel.items():
+            if unread > 0:
                 return channel_id
-        return channel_ids[0] if channel_ids else None
-    
-    def _build_channel_block(self, channel_id, title, color, is_open):
-        block, block_layout = make_container(spacing = 4)
-        unread = db.get_unread_count(channel_id)
-        
-        top = QWidget()
-        top.setStyleSheet(TRANSPARENT)
-        top_layout = QHBoxLayout(top)
-        top_layout.setContentsMargins(0, 0, 0, 0)
-        
-        arrow = "▾" if is_open else "▸"
-        label = QPushButton(f"{arrow} {title}  .  {unread} unread")
-        label.setCursor(Qt.CursorShape.PointingHandCursor)
-        label.setStyleSheet(CHANNEL_LABEL_STYLE.format(color = color) + "text-align: left; border: none; padding: 2px 0; background: transparent;")
-        label.clicked.connect(lambda _c = False, cid = channel_id: self.open_channel(cid))
-        top_layout.addWidget(label)
-        top_layout.addStretch()
-        if is_open:
-            top_layout.addWidget(self._build_mark_button(channel_id, unread))
-        
-        block_layout.addWidget(top)
-        if is_open:
-            block_layout.addWidget(self._build_items_list(channel_id, db.get_items(channel_id)))
-        return block
+        return next(iter(unread_by_channel), None)
     
     def _build_mark_button(self, channel_id, unread):
         button = QPushButton("Mark all read")
@@ -204,7 +236,7 @@ class PopupWindow(QWidget):
         button.clicked.connect(lambda _c = False: self.mark_read_clicked(channel_id))
         return button
     
-    def _build_items_list(self, channel_id, items):
+    def _build_items_list(self, channel_id, items, height = None):
         inner, inner_layout = make_container(spacing = 4)
         
         if not items:
@@ -231,25 +263,48 @@ class PopupWindow(QWidget):
                 label = ItemLabel(base_style)
                 label.setWordWrap(True)
                 label.setText(safe_text)
-            
+                
             inner_layout.addWidget(label)
-        
+            
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet(SCROLL_STYLE)
         scroll.setWidget(inner)
-        scroll.setFixedHeight(min(MAX_ITEMS_HEIGHT, ITEM_ROW_ESTIMATE * max(1, len(items))))
+        scroll.setFixedHeight(height or min(MAX_ITEMS_HEIGHT, ITEM_ROW_ESTIMATES * max(1, len(items))))
         return scroll
     
     def open_channel(self, channel_id):
+        """Switches which channel is open. Nothing is rebuilt: lists are shown and hidden in place."""
+        if channel_id not in self.channel_blocks:
+            return
         self.expanded_channel = channel_id
-        self.rebuild()
+        self.setUpdatesEnabled(False)
+        try:
+            for block_id, block in self.channel_blocks.items():
+                block.set_open(block_id == channel_id)
+            self._relayout()
+            self.fit()
+        finally:
+            self.setUpdatesEnabled(True)
+    
+    def _relayout(self):
+        """Recomputes every layout between the channel blocks and the window right now, so a
+        show or hide is reflected in the window's height within the same step."""
+        for block in self.channel_blocks.values():
+            widget = block
+            while widget is not None and widget is not self:
+                if widget.layout():
+                    widget.layout().invalidate()
+                widget.updateGeometry() #drops the size its parent layout remembered for this widget
+                widget = widget.parentWidget()
+        self.layout_.invalidate()
+        self.layout_.activate()
     
     def toggle_bot(self, bot_id):
         self.expanded_id = None if self.expanded_id == bot_id else bot_id
         self.rebuild()
     
-    def _item_clicked(self, item_id, channel_id, url):
+    def _item_clicked(self, item_id, channel_id,url):
         db.mark_read(item_id)
         QDesktopServices.openUrl(QUrl(url))
         if self.on_unread_changed:
@@ -299,23 +354,29 @@ class PopupWindow(QWidget):
         self.activateWindow()
     
     def rebuild(self):
-        self.refresh()
-        self.layout_.activate()
-        self.resize(self.width(), self.layout_.sizeHint().height())
-        self.place()
-        QTimer.singleShot(0, self.place)
+        #Painting is paused while the rows are swapped, so the window only ever draws the finished result
+        self.setUpdatesEnabled(False)
+        try:
+            self.refresh()
+            self.layout_.activate()
+            self.fit()
+        finally:
+            self.setUpdatesEnabled(True)
+        QTimer.singleShot(0, self.fit) #this is harmless when nothing changed"; corrects the size if Qt adjusted it after showing
     
-    def place(self):
+    def fit(self):
+        """Sets the window's size and position together, in on step, so it never shows an in-between state."""
         x, y = self.anchor
+        height = self.layout_.sizeHint().height()
         screen = QGuiApplication.screenAt(QPoint(x, y)) or QGuiApplication.primaryScreen()
         area = screen.availableGeometry()
         
         min_x = area.x() + SCREEN_MARGIN
         max_x = area.x() + area.width() - self.width() - SCREEN_MARGIN
         min_y = area.y() + SCREEN_MARGIN
-        max_y = area.y() + area.height() - self.height() - SCREEN_MARGIN
+        max_y = area.y() + area.height() - height - SCREEN_MARGIN
         
-        self.move(clamp(x, min_x, max_x), clamp(y - self.height(), min_y, max_y))
+        self.setGeometry(clamp(x, min_x, max_x), clamp(y - height, min_y, max_y), self.width(), height)
     
     def show_near(self, x, y):
         self.anchor = (x, y)
@@ -324,4 +385,3 @@ class PopupWindow(QWidget):
         self.rebuild()
         self.show()
         self.activateWindow()
-

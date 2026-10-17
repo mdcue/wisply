@@ -171,6 +171,10 @@ def add_item(channel_id, text, timestamp, url = None, price = None, discount = N
 def get_unread_count(channel_id):
     return _read("SELECT COUNT(*) FROM items WHERE channel_id = ? AND read = 0", (channel_id,))[0][0]
 
+def get_unread_counts():
+    """Unread items per channel, for every channel that has any, in one query."""
+    return dict(_read("SELECT channel_id, COUNT(*) FROM items WHERE read = 0 GROUP BY channel_id"))
+
 def get_items(channel_id, limit = None):
     """A channel's items, newest first. `limit` caps how many come back (None means all)."""
     rows = _read(
