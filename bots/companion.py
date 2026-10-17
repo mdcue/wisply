@@ -26,7 +26,7 @@ MOODS = {
     "sleepy": ["sleepy", "sleeping", "tired", "yawning", "blank"],
     "worried": ["worried", "concerned", "anxious", "nervous"],
     "happy": ["happy", "laughing", "smiling"],
-    "calm": ["smiling", "happy"],
+    "calm": ["content", "smiling", "happy"],
 }
 
 def _connect_and_run(sql, params = (), fetch = False):
