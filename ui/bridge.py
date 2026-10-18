@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QDesktopServices
 from datetime import datetime
 
+from bots import companion
 from core import db, account, appearance, icons
 from core.paths import DATA_DIR
 from bots.registry import BOT_MODULES
@@ -78,6 +79,45 @@ class HubBridge(QObject):
     def mark_all_read(self, channel_id):
         db.mark_all_read(channel_id)
         self.dataChanged.emit()
+    
+    @pyqtSlot(result = str)
+    def companion_notes(self):
+        return json.dumps({"reminders": companion.list_reminders(), "ideas": companion.list_ideas()})
+    
+    @pyqtSlot(str, str, str, str, result = str)
+    def companion_add_reminder(self, text, date_text, time_text, repeat):
+        return self._companion_change(lambda: companion.create_reminder(text, date_text, time_text, repeat))
+    
+    @pyqtSlot(str, result = str)
+    def companion_add_item(self, text):
+        return self._companion_change(lambda: companion.create_idea(text))
+    
+    @pyqtSlot(int, str, str, str, str, result = str)
+    def companion_update(self, note_id, text, date_text, time_text, repeat):
+        return self._companion_change(lambda: companion.update_note(note_id, text, date_text, time_text, repeat))
+    
+    @pyqtSlot(int, result = str)
+    def companion_complete(self, note_id):
+        return self._companion_change(lambda: companion.complete_reminder(note_id))
+    
+    @pyqtSlot(int, str, result = str)
+    def companion_snooze(self, note_id, option):
+        return self._companion_change(lambda: companion.snooze_reminder(note_id, option))
+    
+    @pyqtSlot(int, result = str)
+    def companion_delete(self, note_id):
+        return self._companion_change(lambda: companion.delete_note(note_id))
+    
+    def _companion_change(self, action):
+        """Runs a change to Companion's notes and answers {"ok": true} or {"ok": false, "error": "..."}
+        with a message the page can show. Then Companion checks right away, so its items and face react."""
+        try:
+            action()
+        except ValueError as error:
+            return json.dumps({"ok": False, "error": str(error)})
+        threading.Thread(target = self._run_fetch, args = ("companion", companion, "Companion update"), daemon = True).start()
+        self.dataChanged.emit()
+        return json.dumps({"ok": True})
     
     @pyqtSlot(int)
     def dismiss_item(self, item_id):
