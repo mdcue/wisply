@@ -89,7 +89,7 @@ class HubBridge(QObject):
         return self._companion_change(lambda: companion.create_reminder(text, date_text, time_text, repeat))
     
     @pyqtSlot(str, result = str)
-    def companion_add_item(self, text):
+    def companion_add_idea(self, text):
         return self._companion_change(lambda: companion.create_idea(text))
     
     @pyqtSlot(int, str, str, str, str, result = str)
