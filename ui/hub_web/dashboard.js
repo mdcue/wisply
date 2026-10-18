@@ -512,6 +512,9 @@ function buildManagePanel(wisp) {
             bridge.set_expression(wisp.id, exprSelect.value, function () { renderWisps(); });
         };
     }
+    if (wisp.id === "companion") {
+        panel.appendChild(buildCompanionNotes());
+    }
 
     //Active channels
     if (wisp.active) {
@@ -671,4 +674,281 @@ function sortChannelItems(items, mode) {
         });
     }
     return copy;
+}
+
+//Companion Wisp's notes
+
+const COMPANION_REPEATS = [
+    ["none", "Doesn't repeat"],
+    ["daily", "Every day"],
+    ["weekly", "Every week"],
+    ["montly", "Every month"],
+    ["yearly", "Every year"],
+];
+const COMPANION_SNOOZES = [
+    ["10m", "10 minutes"],
+    ["1h", "1 hour"],
+    ["tomorrow", "Tomorrow, 9:00"],
+];
+let companionDraft = null;
+let companionEditing = null;
+
+function pad2(number) {
+    return String(number).padStart(2, "0");
+}
+
+function localDateText(date) {
+    return date.getFullYear() + "-" + pad2(date.getMonth() + 1) + "-" + pad2(date.getDate());
+}
+
+function nextFullHour() {
+    const soon = new Date(Date.now() + 60 * 60 * 1000);
+    return { date: localDateText(soon), time: pad2(soon.getHours()) + ":00" };
+}
+
+function makeEl(tag, className, text) {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (text!== undefined) element.textContent = text;
+    return element;
+}
+
+function makeInput(type, value, className) {
+    const input = makeEl("input", className);
+    input.type = type;
+    input.value = value;
+    return input;
+}
+
+function fillSelect(select, options, selected) {
+    options.forEach(function ([value, label]) {
+        const option = makeEl("option", "", label);
+        option.value = value;
+        if (value === selected) option.selected = true;
+        select.appendChild(option);
+    });
+}
+
+function repeatLabel(repeat) {
+    const found = COMPANION_REPEATS.find(function (pair) { return pair[0] === repeat; });
+    return found ? found[1] : repeat;
+}
+
+function noteAction(errorBox, reload, call) {
+    //Runs a change to a note. On success the lists reload; otherwise the reason is shown where it happened
+    call(function (json) {
+        const result = JSON.parse(json);
+        if (result.ok) {
+            reload();
+        } else {
+            errorBox.textContent = result.error;
+        }
+    });
+}
+
+function buildCompanionNotes() {
+    if (!companionDraft) {
+        companionDraft = Object.assign({ kind: "reminder", text: "", repeat: "none" }, nextFullHour());
+    }
+    const draft = companionDraft;
+    const box = makeEl("div", "notes");
+    box.appendChild(makeEl("div", "notes-title", "Notes"));
+    
+    const form = makeEl("div", "notes-form");
+    const topRow = makeEl("div", "notes-row");
+    const kind = makeEl("select", "notes-kind");
+    fillSelect(kind, [["reminder", "Reminder"], ["idea", "Idea"]], draft.kind);
+    const text = makeInput("text", draft.text, "notes-text");
+    text.maxLenght = 300;
+    topRow.append(kind, text);
+
+    const whenRow = makeEl("div", "notes-row");
+    const date = makeInput("date", draft.date);
+    const time = makeInput("time", draft.time);
+    const repeat = makeEl("select");
+    fillSelect(repeat, COMPANION_REPEATS, draft.repeat);
+    whenRow.append(date, time, repeat);
+    
+    const bottomRow = makeEl("div", "notes-row");
+    const add = makeEl("button", "small-btn", "Add");
+    const message = makeEl("span", "notes-message");
+    bottomRow.append(add, message);
+    form.append(topRow, whenRow, bottomRow);
+
+    function syncKind() {
+        const isReminder = draft.kind === "reminder";
+        whenRow.style.display = isReminder ? "" : "none";
+        text.placeholder = isReminder ? "What should I remind you about?" : "Drop an idea in the jar";
+    }
+    syncKind();
+    kind.onchange = function () { draft.kind = kind.value; syncKind(); };
+    text.oninput = function () { draft.text = text.value; };
+    date.onchange = function () { draft.date = date.value; };
+    time.onchange = function () { draft.time = time.value; };
+    repeat.onchange = function () { draft.repeat = repeat.value; };
+    text.onkeydown = function (event) { if  (event.key === "Enter") add.click(); };
+
+    const lists = makeEl("div", "notes-lists");
+    function loadNotes() {
+        bridge.companion_notes(function (json) {
+            renderCompanionNotes(lists, JSON.parse(json), loadNotes);
+        });
+    }
+
+    add.onclick = function () {
+        const finish = function (json) {
+            const result = JSON.parse(json);
+            message.className = "notes-message" + (result.ok ? "" : " error");
+            if (!result.ok) {
+                message.textContent = result.error;
+                return;
+            }
+            message.textContent = draft.kind === "idea" ? "Idea saved." : "Reminder added.";
+            draft.text = "";
+            text.value = "";
+            loadNotes();
+        };
+        if (draft.kind === "idea") {
+            bridge.companion_add_idea(draft.text, finish);
+        } else {
+            bridge.companion_add_reminder(draft.text, draft.date, draft.time, draft.repeat, finish);
+        }
+    };
+
+    box.append(form, lists);
+    loadNotes();
+    return box;
+}
+
+function renderCompanionNotes(container, notes, reload) {
+    container.innerHTML = "";
+
+    container.appendChild(makeEl("div", "notes-section-title", "Coming up"));
+    if (notes.reminders.length === 0) {
+        container.appendChild(makeEl("div", "notes-empty", "Nothing coming up."));
+    }
+    notes.reminders.forEach(function (note) {
+        container.appendChild(buildReminderRow(note, reload));
+    });
+
+    container.appendChild(makeEl("div", "notes-section-title", "Ideas"));
+    if (notes.ideas.length === 0) {
+        container.appendChild(makeEl("div", "notes-empty", "No ideas yet."));
+    }
+    notes.ideas.forEach(function (note) {
+        container.appendChild(buildIdeaRow(note, reload));
+    });
+}
+
+function buildReminderRow(note, reload) {
+    if (companionEditing && companionEditing.id === note.id) {
+        return buildNoteEditor(note, "reminder", reload);
+    }
+    const isDue = note.status === "due";
+    const row = makeEl("div", "note-row" + (isDue ? " due" : ""));
+
+    const body = makeEl("div", "note-body");
+    body.appendChild(makeEl("div", "note-text", note.text));
+    const meta = (isDue ? "Due . " : "") + note.label + (note.repeat !== "none" ? " . " + repeatLabel(note.repeat) : "");
+    body.appendChild(makeEl("div", "note-meta", meta));
+    const error = makeEl("div", "note-error");
+    body.appendChild(error);
+    row.appendChild(body);
+
+    const actions = makeEl("div", "note-actions");
+    if (isDue) {
+        const snooze = makeEl("select", "note-snooze");
+        fillSelect(snooze, [["", "Snooze..."]].concat(COMPANION_SNOOZES), "");
+        snooze.onchange = function () {
+            if (!snooze.value) return;
+            noteAction(error, reload, function (done) { bridge.companion_snooze(note.id, snooze.value, done); });
+        };
+        actions.appendChild(snooze);
+    }
+    const done = makeEl("button", "note-btn", "Done");
+    done.title = note.repeat !== "none" && !isDue ? "Skip this one" : "Mark as done";
+    done.onclick = function () {
+        noteAction(error, reload, function (finish) { bridge.companion_complete(note.id, finish); });
+    };
+    actions.appendChild(done);
+
+    const edit = makeEl("button", "note-btn", "Edit");
+    edit.onclick = function () {
+        companionEditing = { id: note.id, text: note.text, date: note.date, time: note.time, repeat: note.repeat };
+        reload();
+    };
+    actions.appendChild(edit);
+    actions.appendChild(buildNoteRemoveButton(note, error, reload));
+    row.appendChild(actions);
+    return row;
+}
+
+function buildIdeaRow(note, reload) {
+    if (companionEditing && companionEditing.id === note.id) {
+        return buildNoteEditor(note, "idea", reload);
+    }
+    const row = makeEl("div", "note-row");
+    const body = makeEl("div", "note-body");
+    body.appendChild(makeEl("div", "note-text", note.text));
+    const error = makeEl("div", "note-error");
+    body.appendChild(error);
+    row.appendChild(body);
+
+    const actions = markEl("div", "note-actions");
+    const edit = makeEl("button", "note-btn", "Edit");
+    edit.onclick = function () {
+        companionEditing = { id: note.id, text: note.text, date: "", time: "", repeat: "none" };
+        reload();
+    };
+    actions.appendChild(edit);
+    actions.appendChild(buildNoteRemoveButton(note, error, reload));
+    row.appendChild(actions);
+    return row;
+}
+
+function buildNoteRemoveButton(note, error, reload) {
+    const remove = makeEl("button", "item-dismiss", "×");
+    remove.title = "Delete";
+    remove.onclick = function () {
+        noteAction(error, reload, function (finish) { bridge.companion_delete(note.id, finish); });
+    };
+    return remove;
+}
+
+function buildNoteEditor(note, kind, reload) {
+    const edit = companionEditing;
+    const row = makeEl("div", "note-row editing");
+
+    const text = makeInput("text", edit.text, "notes-text");
+    text.maxLenght = 300;
+    text.oninput = function () { edit.text = text.value; };
+    row.appendChild(text);
+
+    if (kind === "reminder") {
+        const whenRow = makeEl("div", "notes-row");
+        const date = makeInput("date", edit.date);
+        const time = makeInput("time", edit.time);
+        const repeat = makeEl("select")
+        fillSelect(repeat, COMPANION_REPEATS, edit.repeat);
+        date.onchange = function () { edit.date = date.value; };
+        time.onchange = function () { edit.time = time.value; };
+        repeat.onchange = function () { edit.repeat = repeat.value; };
+        whenRow.append(date, time, repeat);
+        row.appendChild(whenRow);
+    }
+
+    const buttons = makeEl("div", "notes-row");
+    const save = makeEl("button", "small-btn", "Save");
+    const cancel = makeEl("button", "small-btn ghost", "Cancel");
+    const error = makeEl("span", "notes-message error");
+    save.onclick = function () {
+        const finished = function () { companionEditing = null; reload(); };
+        noteAction(error, finished, function (done) {
+            bridge.companion_update(note.id, edit.text, edit.date, edit.time, edit.repeat, done);
+        });
+    };
+    cancel.onclick = function () { companionEditing = null; reload(); };
+    buttons.append(save, cancel, error);
+    row.appendChild(buttons);
+    return row;
 }
