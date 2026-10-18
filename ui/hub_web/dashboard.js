@@ -682,7 +682,7 @@ const COMPANION_REPEATS = [
     ["none", "Doesn't repeat"],
     ["daily", "Every day"],
     ["weekly", "Every week"],
-    ["montly", "Every month"],
+    ["hly", "Every month"],
     ["yearly", "Every year"],
 ];
 const COMPANION_SNOOZES = [
@@ -709,7 +709,7 @@ function nextFullHour() {
 function makeEl(tag, className, text) {
     const element = document.createElement(tag);
     if (className) element.className = className;
-    if (text!== undefined) element.textContent = text;
+    if (text !== undefined) element.textContent = text;
     return element;
 }
 
@@ -759,7 +759,7 @@ function buildCompanionNotes() {
     const kind = makeEl("select", "notes-kind");
     fillSelect(kind, [["reminder", "Reminder"], ["idea", "Idea"]], draft.kind);
     const text = makeInput("text", draft.text, "notes-text");
-    text.maxLenght = 300;
+    text.maxLength = 300;
     topRow.append(kind, text);
 
     const whenRow = makeEl("div", "notes-row");
@@ -894,7 +894,7 @@ function buildIdeaRow(note, reload) {
     body.appendChild(error);
     row.appendChild(body);
 
-    const actions = markEl("div", "note-actions");
+    const actions = makeEl("div", "note-actions");
     const edit = makeEl("button", "note-btn", "Edit");
     edit.onclick = function () {
         companionEditing = { id: note.id, text: note.text, date: "", time: "", repeat: "none" };
@@ -920,7 +920,7 @@ function buildNoteEditor(note, kind, reload) {
     const row = makeEl("div", "note-row editing");
 
     const text = makeInput("text", edit.text, "notes-text");
-    text.maxLenght = 300;
+    text.maxLength = 300;
     text.oninput = function () { edit.text = text.value; };
     row.appendChild(text);
 
@@ -928,7 +928,7 @@ function buildNoteEditor(note, kind, reload) {
         const whenRow = makeEl("div", "notes-row");
         const date = makeInput("date", edit.date);
         const time = makeInput("time", edit.time);
-        const repeat = makeEl("select")
+        const repeat = makeEl("select");
         fillSelect(repeat, COMPANION_REPEATS, edit.repeat);
         date.onchange = function () { edit.date = date.value; };
         time.onchange = function () { edit.time = time.value; };

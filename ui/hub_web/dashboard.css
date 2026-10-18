@@ -610,7 +610,7 @@ body {
 }
 
 :root[data-theme="light"] .notes input,
-:root[date-theme="light"] .notes select {
+:root[data-theme="light"] .notes select {
     color-scheme: light;
 }
 
@@ -659,7 +659,7 @@ body {
     border-left: 3px solid #ff7a59;
 }
 
-.note.row.editing {
+.note-row.editing {
     flex-direction: column;
     align-items: stretch;
 }
