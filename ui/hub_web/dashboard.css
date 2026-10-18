@@ -572,3 +572,141 @@ body {
 .danger-btn:hover {
     filter: brightness(1.15);
 }
+
+/*Companion notes*/
+.notes {
+    margin: 14px 0 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+.notes-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.notes-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.notes input[type="text"],
+.notes input[type="date"],
+.notes input[type="time"],
+.notes select {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    color-scheme: dark;
+}
+
+:root[data-theme="light"] .notes input,
+:root[date-theme="light"] .notes select {
+    color-scheme: light;
+}
+
+.notes-text {
+    flex: 1;
+    min-width: 120px;
+}
+
+.notes-message {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.notes-message.error,
+.note-error {
+    color: #e5534b;
+    font-size: 12px;
+}
+
+.notes-section-title {
+    margin: 12px 0 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+}
+
+.notes-empty {
+    font-size: 12px;
+    color: var(--text-faint);
+    padding: 4px 0;
+}
+
+.note-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    background: var(--card-bg);
+}
+
+.note-row.due {
+    border-left: 3px solid #ff7a59;
+}
+
+.note.row.editing {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.note-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.note-text {
+    font-size: 13px;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.note-meta {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 2px;
+}
+
+.note-row.due .note-meta {
+    color: #ff7a59;
+    font-weight: 600;
+}
+
+.note-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+}
+
+.note-btn {
+    cursor: pointer;
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.note-btn:hover {
+    color: var(--text);
+    background: var(--card-hover-bg);
+}
