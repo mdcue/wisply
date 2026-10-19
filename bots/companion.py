@@ -7,7 +7,7 @@ from core import db, appearance, icons
 from bots.common import register_wisp
 
 BOT_ID = "companion"
-BOT_NAME = "Companion"
+BOT_NAME = "pip"
 BOT_COLOR = "#ff7a59"
 DESCRIPTION = "Reminds you what's coming up and brings your saved ideas back."
 

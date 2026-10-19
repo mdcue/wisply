@@ -5,7 +5,7 @@ from bots.common import USER_AGENT, register_wisp
 
 HEADERS = {"User-Agent": USER_AGENT}
 BOT_ID = "game_deals"
-BOT_NAME = "Game Deals"
+BOT_NAME = "ware-Weaver"
 BOT_COLOR = "#4CAF50"
 DESCRIPTION = "Tracks game deals and free games across every major store."
 

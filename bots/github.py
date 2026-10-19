@@ -13,7 +13,7 @@ HEADERS = {
     "X-GitHub-Api-Version": "2022-11-28",
 }
 BOT_ID = "github"
-BOT_NAME = "GitHub"
+BOT_NAME = "Gitty"
 BOT_COLOR = "#8957e5"
 DESCRIPTION = "Tracks trending, rising and hidden-gems repositories on GitHub."
 
