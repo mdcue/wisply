@@ -360,14 +360,15 @@ function renderWisps() {
     });
 }
 
-const INTERVAL_OPTIONS = [
-    [0, "Only on startup"],
-    [900, "15 minutes"],
-    [1800, "30 minutes"],
-    [3600, "1 hour"],
-    [7200, "2 hours"],
-    [14400, "4 hours"],
-];
+function intervalLabel(seconds) {
+    if (seconds === 0) return "Only on startup";
+    if (seconds < 3600) {
+        const minutes = seconds / 60;
+        return minutes === 1 ? "1 minute" : minutes + " minutes";
+    }
+    const hours = seconds / 3600;
+    return hours === 1 ? "1 hour" : hours + " hours";
+}
 
 function renderSettings() {
     bridge.get_settings_wisps(function (json) {
@@ -414,13 +415,18 @@ function renderSettings() {
 
             const select = document.createElement("select");
             select.className = "settings-interval";
-            INTERVAL_OPTIONS.forEach(function ([seconds, label]) {
+            
+            const intervals = (wisp.intervals || []).slice();
+            if (intervals.indexOf(wisp.fetch_interval) === -1) intervals.push(wisp.fetch_interval); //keeps a value chosen earlier
+            intervals.sort(function (a, b) { return a === 0 ? -1 : (b === 0 ? 1 : a - b); });
+            intervals.forEach(function (seconds) {
                 const o = document.createElement("option");
                 o.value = seconds;
-                o.textContent = label;
+                o.textContent = intervalLabel(seconds);
                 if (wisp.fetch_interval === seconds) o.selected = true;
                 select.appendChild(o);
             });
+
             select.onchange = function() {
                 bridge.set_fetch_interval(wisp.id, parseInt(select.value, 10));
             };

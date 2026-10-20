@@ -22,6 +22,7 @@ SLEEPY_FROM = 23 #the time between SLEEPY_FROM and SLEEPY_UNTIL the face looks s
 SLEEPY_UNTIL = 5
 MAX_TEXT = 300 #longest note the Hub will accept
 TOMORROW_HOUR = 9 #"snooze until tomorrow" means tomorrow at this hour
+FETCH_INTERVALS = (60, 300, 900, 1800, 3600) #Companion only reads your own notes, so it can check every minute
 
 #For each mood, expression, names to try in order. The first one that exists in your
 #expression folder is used, so a missing name never breaks anything
@@ -64,7 +65,7 @@ CHANNELS = [
 
 def register():
     _ensure_table()
-    register_wisp(BOT_ID, BOT_NAME, BOT_COLOR, CHANNELS)
+    register_wisp(BOT_ID, BOT_NAME, BOT_COLOR, CHANNELS, fetch_interval = 60)
 
 #this is for storing notes
 def add_reminder(text, due, repeat = "none"):

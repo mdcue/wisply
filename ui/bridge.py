@@ -9,6 +9,7 @@ from PyQt6.QtGui import QDesktopServices
 from datetime import datetime
 
 from bots import companion
+from bots.common import DEFAULT_INTERVALS
 from core import db, account, appearance, icons
 from core.paths import DATA_DIR
 from bots.registry import BOT_MODULES
@@ -215,6 +216,7 @@ class HubBridge(QObject):
                 "color": color,
                 "icon": _icon_to_data_uri(icon_path),
                 "fetch_interval": fetch_interval,
+                "intervals": list(getattr(BOT_MODULES.get(bot_id), "FETCH_INTERVALS", DEFAULT_INTERVALS)),
                 "last_fetched": _utc_to_local_text(last_fetched),
             })
         return json.dumps(wisps)

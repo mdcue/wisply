@@ -8,6 +8,8 @@ from bots.registry import ALL_BOTS
 
 TICK_SECONDS = 60
 RETRY_AFTER_FAILURE_SECONDS = 300
+DUE_TOLERANCE_SECONDS = 5 #a wisp counts as due a few seconds early, so a 1-minutes interval is not missed by a hair
+QUITE_BELOW_SECONDS = 300 #wisps checked more often than this don't write a log line for every check
 
 _retry_not_before = {}
 
@@ -37,7 +39,7 @@ def _is_due(bot_row):
     if bot_row.last_fetched is None:
         return True
     try:
-        return _seconds_since(bot_row.last_fetched) >= bot_row.fetch_interval
+        return _seconds_since(bot_row.last_fetched) >= bot_row.fetch_interval - DUE_TOLERANCE_SECONDS
     except ValueError:
         return True
 
@@ -52,7 +54,9 @@ def run_tick(on_complete = None):
                     continue
                 if not _is_due(bot_row):
                     continue
-                print(f"Fetching {bot.BOT_ID}...")
+                chatty = bot_row.fetch_interval >= QUITE_BELOW_SECONDS
+                if chatty:
+                    print(f"Fetching {bot.BOT_ID}...")
                 if _fetch_safely(bot):
                     print(f"Unread for {bot.BOT_ID}:", db.get_bot_unread(bot.BOT_ID))
             except Exception:
