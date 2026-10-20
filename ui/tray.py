@@ -1,15 +1,19 @@
+import json
 import sys
 import threading
-from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
+
+from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QMessageBox
 from PyQt6.QtGui import QIcon, QAction
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, Qt, QTimer, pyqtSignal
 
 from ui.bridge import HubBridge
 from ui.launcher import LauncherStrip
 from ui.hub import HubWindow
 from ui.single_instance import SingleInstance
+from ui.quick_add import ask_for_note
 from core import db, startup, scheduler, appearance, account, logsetup
 from core.paths import BASE_DIR
+from bots import companion
 from bots.registry import ALL_BOTS
 
 ASSETS_DIR = BASE_DIR / "ui" / "assets"
@@ -46,6 +50,15 @@ class TrayApp:
         self.hub_action = QAction("Open Hub")
         self.hub_action.triggered.connect(self.open_hub)
         self.menu.addAction(self.hub_action)
+        self.menu.addSeparator()
+        
+        self.idea_action = QAction("Add idea...")
+        self.idea_action.triggered.connect(self.add_idea)
+        self.menu.addAction(self.idea_action)
+        
+        self.reminder_action = QAction("Add reminder...")
+        self.reminder_action.triggered.connect(self.add_reminder)
+        self.menu.addAction(self.reminder_action)
         self.menu.addSeparator()
         
         self.startup_action = QAction("Start with Windows", checkable = True)
@@ -86,6 +99,36 @@ class TrayApp:
         self.hub.show()
         self.hub.raise_()
         self.hub.activateWindow()
+    
+    def add_idea(self):
+        values = ask_for_note("Add an idea", with_time = False)
+        if values:
+            self._save_note(lambda: companion.create_idea(values[0]))
+    
+    def add_reminder(self):
+        values = ask_for_note("Add a reminder", with_time = True)
+        if values:
+            text, date_text, time_text, repeat = values
+            self._save_note(lambda: companion.create_reminder(text, date_text, time_text, repeat))
+    
+    def _save_note(self, action):
+        """Saves a note from the tray menu, and says so if it could not be saved."""
+        bot = db.get_bot(companion.BOT_ID)
+        if not bot or not bot.active:
+            self._tell("Turn Companion on in the Hub first, so it can remind you.")
+            return
+        result = json.loads(self.hub_bridge._companion_change(action))
+        if result["ok"]:
+            QTimer.singleShot(2000, self.check_for_new_items) #gives Companion's check a moment, then updates the badge and alerts
+        else:
+            self._tell(result["error"])
+    
+    def _tell(self, message):
+        box = QMessageBox()
+        box.setWindowTitle("wisply")
+        box.setText(message)
+        box.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+        box.exec()
     
     def toggle_startup(self):
         startup.toggle()
