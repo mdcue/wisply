@@ -293,6 +293,13 @@ function renderActivityFeed() {
                 textE1.appendChild(a);
             } else {
                 textE1.textContent = entry.text;
+                if (!entry.read) {
+                    textE1.classList.add("clickable");
+                    textE1.title = "Click to mark as read";
+                    textE1.onclick = function () {
+                        bridge.mark_item_read(entry.item_id, function () { renderActivityFeed(); });
+                    };
+                }
             }
 
             content.appendChild(textE1);
@@ -613,6 +620,13 @@ function buildChannelBlock(channel) {
             body.appendChild(a);
         } else {
             body.textContent = item.text;
+            if (!item.read) {
+                body.classList.add("clickable");
+                body.title = "Click to mark as read";
+                body.onclick = function () {
+                    bridge.mark_item_read(item.id, function () { renderWisps(); });
+                };
+            }
         }
         row.appendChild(body);
 

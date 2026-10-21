@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QMenu, QInputDialog, QColorDialog
 )
-from PyQt6.QtCore import Qt, QPoint, QTimer, QUrl, QSize, QEvent
+from PyQt6.QtCore import Qt, QPoint, QTimer, QUrl, QSize, QEvent, pyqtSignal
 from PyQt6.QtGui import QGuiApplication, QColor, QDesktopServices, QIcon
 
 from core import db, appearance
@@ -61,12 +61,23 @@ def make_container(spacing):
     return widget, layout
 
 class ItemLabel(QLabel):
-    """A QLabel that highlights on hover and (if it holds a url) is clickable. Both looks are
-    in its stylesheet from the start, so moving the mouse never restyles it."""
-    def __init__(self, base_style):
+    """A QLabel that highlights on hover. Both looks are in its stylesheet from the start, so
+    moving the mouse never restyles it. An item with a link handles its own click; one that is
+    created with clickable = True (an unread item with nothing to open) sends `clicked`."""
+    clicked = pyqtSignal()
+    
+    def __init__(self, base_style, clickable = False):
         super().__init__()
+        self.clickable = clickable
+        if clickable:
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
         self.setStyleSheet(f"ItemLabel {{ {base_style} }} ItemLabel:hover {{ {ITEM_HOVER_STYLE} }}")
+
+    def mouseReleaseEvent(self, event):
+        if self.clickable and event.button() == Qt.MouseButton.LeftButton and self.rect().contains(event.position().toPoint()):
+            self.clicked.emit()
+        super().mouseReleaseEvent(event)
 
 class ChannelBlock(QWidget):
     """One channel of a wisp inside the popup: a header you click to open it, and its list of
@@ -260,10 +271,12 @@ class PopupWindow(QWidget):
                 )
             else:
                 base_style = ITEM_STYLE.format(colour = colour)
-                label = ItemLabel(base_style)
+                label = ItemLabel(base_style, clickable = not read)
                 label.setWordWrap(True)
                 label.setText(safe_text)
-                
+                if not read:
+                    label.setToolTip("Click to mark as read")
+                    label.clicked.connect(lambda iid = item_id: self._item_read(iid))
             inner_layout.addWidget(label)
             
         scroll = QScrollArea()
@@ -307,6 +320,12 @@ class PopupWindow(QWidget):
     def _item_clicked(self, item_id, channel_id,url):
         db.mark_read(item_id)
         QDesktopServices.openUrl(QUrl(url))
+        if self.on_unread_changed:
+            self.on_unread_changed()
+        self.rebuild()
+    
+    def _item_read(self, item_id):
+        db.mark_read(item_id)
         if self.on_unread_changed:
             self.on_unread_changed()
         self.rebuild()

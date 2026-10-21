@@ -136,6 +136,11 @@ class HubBridge(QObject):
         QDesktopServices.openUrl(QUrl(url))
         self.dataChanged.emit()
     
+    @pyqtSlot(int)
+    def mark_item_read(self, item_id):
+        db.mark_read(item_id)
+        self.dataChanged.emit()
+    
     @pyqtSlot(str, str, result = bool)
     def rename_wisp(self, bot_id, new_name):
         new_name = new_name.strip()

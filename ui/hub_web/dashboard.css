@@ -711,3 +711,8 @@ body {
     color: var(--text);
     background: var(--card-hover-bg);
 }
+
+.channel-item-text.clickable,
+.feed-row-text.clickable {
+    cursor: pointer;
+}
