@@ -458,7 +458,6 @@ function renderSettings() {
 function buildManagePanel(wisp) {
     const panel = document.createElement("div");
     panel.className = "manage-panel";
-
     //Renaming
     const renameField = document.createElement("div");
     renameField.className = "manage-field";
