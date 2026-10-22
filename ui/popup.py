@@ -374,7 +374,6 @@ class PopupWindow(QWidget):
     
     def rebuild(self):
         #Painting is paused while the rows are swapped, so the window only ever draws the finished result
-        
         self.setUpdatesEnabled(False)
         try:
             self.refresh()
