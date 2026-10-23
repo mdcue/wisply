@@ -42,7 +42,6 @@ def toggle():
         enable()
         print("Startup enabled.")
 
-
 if __name__ == "__main__":
     print("Currently enabled:", is_enabled())
     toggle()
