@@ -704,7 +704,7 @@ const COMPANION_REPEATS = [
     ["none", "Doesn't repeat"],
     ["daily", "Every day"],
     ["weekly", "Every week"],
-    ["hly", "Every month"],
+    ["monthly", "Every month"],
     ["yearly", "Every year"],
 ];
 const COMPANION_SNOOZES = [
@@ -778,6 +778,7 @@ function buildCompanionGreeting() {
         hello.textContent = mood.greeting;
         line.textContent = mood.line;
     });
+    return box;
 }
 
 function buildCompanionNotes() {
