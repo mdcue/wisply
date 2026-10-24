@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QDesktopServices
 from datetime import datetime
 
-from bots import companion
+from bots import companion, companion_voice
 from bots.common import DEFAULT_INTERVALS
 from core import db, account, appearance, icons
 from core.paths import DATA_DIR
@@ -83,15 +83,28 @@ class HubBridge(QObject):
     
     @pyqtSlot(result = str)
     def companion_notes(self):
-        return json.dumps({"reminders": companion.list_reminders(), "ideas": companion.list_ideas()})
+        return json.dumps({
+            "reminders": companion.list_reminders(),
+            "ideas": companion.list_ideas(),
+            "empty_reminders": companion_voice.EMPTY_REMINDERS,
+            "empty_ideas": companion_voice.EMPTY_IDEAS,
+        })
+    
+    @pyqtSlot(result = str)
+    def companion_mood(self):
+        return json.dumps(companion.describe_mood())
     
     @pyqtSlot(str, str, str, str, result = str)
     def companion_add_reminder(self, text, date_text, time_text, repeat):
-        return self._companion_change(lambda: companion.create_reminder(text, date_text, time_text, repeat))
+        return self._companion_change(
+            lambda: companion.create_reminder(text, date_text, time_text, repeat), companion_voice.SAVED_REMINDER
+        )
     
     @pyqtSlot(str, result = str)
     def companion_add_idea(self, text):
-        return self._companion_change(lambda: companion.create_idea(text))
+        return self._companion_change(
+            lambda: companion.create_idea(text), companion_voice.SAVED_IDEA
+        )
     
     @pyqtSlot(int, str, str, str, str, result = str)
     def companion_update(self, note_id, text, date_text, time_text, repeat):
@@ -109,16 +122,17 @@ class HubBridge(QObject):
     def companion_delete(self, note_id):
         return self._companion_change(lambda: companion.delete_note(note_id))
     
-    def _companion_change(self, action):
+    def _companion_change(self, action, message = None):
         """Runs a change to Companion's notes and answers {"ok": true} or {"ok": false, "error": "..."}
-        with a message the page can show. Then Companion checks right away, so its items and face react."""
+        with a message the page can show (on success, `message` is Companion's cheerful confirmation, if any).
+        Then Companion checks right away, so its items and face react."""
         try:
             action()
         except ValueError as error:
             return json.dumps({"ok": False, "error": str(error)})
         threading.Thread(target = self._run_fetch, args = ("companion", companion, "Companion update"), daemon = True).start()
         self.dataChanged.emit()
-        return json.dumps({"ok": True})
+        return json.dumps({"ok": True, "message": message})
     
     @pyqtSlot(int)
     def dismiss_item(self, item_id):

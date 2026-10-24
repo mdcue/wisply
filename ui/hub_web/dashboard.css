@@ -716,3 +716,21 @@ body {
 .feed-row-text.clickable {
     cursor: pointer;
 }
+
+/*Companion greetings*/
+.companion-greeting {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.companion-hello {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.companion-line {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--text-muted);
+}

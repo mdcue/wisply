@@ -526,6 +526,9 @@ function buildManagePanel(wisp) {
     }
     if (wisp.id === "companion") {
         panel.appendChild(buildCompanionNotes());
+        if (wisp.active) {
+            panel.insertBefore(buildCompanionGreeting(), panel.firstChild);
+        }
     }
 
     //Active channels
@@ -765,6 +768,18 @@ function noteAction(errorBox, reload, call) {
     });
 }
 
+function buildCompanionGreeting() {
+    const box = makeEl("div", "companion-greeting");
+    const hello = makeEl("div", "companion-hello");
+    const line = makeEl("div", "companion-line");
+    box.append(hello, line);
+    bridge.companion_mood(function (json) {
+        const mood = JSON.parse(json);
+        hello.textContent = mood.greeting;
+        line.textContent = mood.line;
+    });
+}
+
 function buildCompanionNotes() {
     if (!companionDraft) {
         companionDraft = Object.assign({ kind: "reminder", text: "", repeat: "none" }, nextFullHour());
@@ -797,7 +812,7 @@ function buildCompanionNotes() {
     function syncKind() {
         const isReminder = draft.kind === "reminder";
         whenRow.style.display = isReminder ? "" : "none";
-        text.placeholder = isReminder ? "What should I remind you about?" : "Drop an idea in the jar";
+        text.placeholder = isReminder ? "What should I remind you about?" : "What's the idea?";
     }
     syncKind();
     kind.onchange = function () { draft.kind = kind.value; syncKind(); };
@@ -822,7 +837,7 @@ function buildCompanionNotes() {
                 message.textContent = result.error;
                 return;
             }
-            message.textContent = draft.kind === "idea" ? "Idea saved." : "Reminder added.";
+            message.textContent = result.message || (draft.kind === "idea" ? "Idea saved." : "Reminder added.");
             draft.text = "";
             text.value = "";
             loadNotes();
@@ -844,7 +859,7 @@ function renderCompanionNotes(container, notes, reload) {
 
     container.appendChild(makeEl("div", "notes-section-title", "Coming up"));
     if (notes.reminders.length === 0) {
-        container.appendChild(makeEl("div", "notes-empty", "Nothing coming up."));
+        container.appendChild(makeEl("div", "notes-empty", notes.empty_reminders || "Nothing coming up."));
     }
     notes.reminders.forEach(function (note) {
         container.appendChild(buildReminderRow(note, reload));
@@ -852,7 +867,7 @@ function renderCompanionNotes(container, notes, reload) {
 
     container.appendChild(makeEl("div", "notes-section-title", "Ideas"));
     if (notes.ideas.length === 0) {
-        container.appendChild(makeEl("div", "notes-empty", "No ideas yet."));
+        container.appendChild(makeEl("div", "notes-empty", notes.empty_ideas || "No ideas yet."));
     }
     notes.ideas.forEach(function (note) {
         container.appendChild(buildIdeaRow(note, reload));
