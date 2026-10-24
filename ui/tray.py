@@ -13,7 +13,7 @@ from ui.single_instance import SingleInstance
 from ui.quick_add import ask_for_note
 from core import db, startup, scheduler, appearance, account, logsetup
 from core.paths import BASE_DIR
-from bots import companion
+from bots import companion, companion_voice
 from bots.registry import ALL_BOTS
 
 ASSETS_DIR = BASE_DIR / "ui" / "assets"
@@ -101,25 +101,26 @@ class TrayApp:
         self.hub.activateWindow()
     
     def add_idea(self):
-        values = ask_for_note("Add an idea", with_time = False)
+        values = ask_for_note(companion_voice.IDEA_WINDOW, with_time = False)
         if values:
-            self._save_note(lambda: companion.create_idea(values[0]))
+            self._save_note(lambda: companion.create_idea(values[0]), companion_voice.SAVED_IDEA)
     
     def add_reminder(self):
-        values = ask_for_note("Add a reminder", with_time = True)
+        values = ask_for_note(companion_voice.REMINDER_WINDOW, with_time = True)
         if values:
             text, date_text, time_text, repeat = values
-            self._save_note(lambda: companion.create_reminder(text, date_text, time_text, repeat))
+            self._save_note(lambda: companion.create_reminder(text, date_text, time_text, repeat), companion_voice.SAVED_REMINDER)
     
-    def _save_note(self, action):
+    def _save_note(self, action, saved_message):
         """Saves a note from the tray menu, and says so if it could not be saved."""
         bot = db.get_bot(companion.BOT_ID)
         if not bot or not bot.active:
-            self._tell("Turn Companion on in the Hub first, so it can remind you.")
+            self._tell(companion_voice.COMPANION_OFF)
             return
         result = json.loads(self.hub_bridge._companion_change(action))
         if result["ok"]:
-            QTimer.singleShot(2000, self.check_for_new_items) #gives Companion's check a moment, then updates the badge and alerts
+            self.tray.showMessage(bot.name, saved_message, QSystemTrayIcon.MessageIcon.Information)
+            QTimer.singleShot(2000, self.check_for_new_items)
         else:
             self._tell(result["error"])
     
@@ -167,7 +168,7 @@ class TrayApp:
             if bot_new_count > 0:
                 self.tray.showMessage(
                     "wisply",
-                    f"{name} found something new",
+                    companion_voice.new_items(name),
                     QSystemTrayIcon.MessageIcon.Information,
                 )
                 self.hub_bridge.newItemsFound.emit(name, bot_new_count)

@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (
     QComboBox, QDateTimeEdit, QDialog, QDialogButtonBox, QFormLayout, QLineEdit
 )
 
+from bots import companion_voice
 from bots.companion import MAX_TEXT, REPEATS
 
 REPEAT_LABELS = {
@@ -24,7 +25,7 @@ class NoteDialog(QDialog):
         form = QFormLayout(self)
         self.text = QLineEdit()
         self.text.setMaxLength(MAX_TEXT)
-        self.text.setPlaceholderText("What should I remind you about?" if with_time else "Drop an idea in the jar")
+        self.text.setPlaceholderText(companion_voice.REMINDER_PLACEHOLDER if with_time else companion_voice.IDEA_PLACEHOLDER)
         form.addRow("Note", self.text)
         
         self.when = None
