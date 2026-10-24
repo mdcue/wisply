@@ -3,8 +3,9 @@ import calendar
 import threading
 from datetime import datetime, timedelta
 
-from core import db, appearance, icons
+from core import db, appearance, icons, account
 from bots.common import register_wisp
+from bots import companion_voice as voice
 
 BOT_ID = "companion"
 BOT_NAME = "pip"
@@ -17,12 +18,12 @@ IDEAS = "co_ideas"
 TIME_FORMAT = "%Y-%m-%d %H:%M"
 REPEATS = ("none", "daily", "weekly", "monthly", "yearly")
 LATE_MINUTES = 60 #a reminder fired later than this says when it was really due
-IDEA_HOUR = 6 #for idea of the day that will appears from this hour on
-SLEEPY_FROM = 23 #the time between SLEEPY_FROM and SLEEPY_UNTIL the face looks sleepy
+IDEA_HOUR = 6 #for idea of the day that will appear from this hour on
+SLEEPY_FROM = 23 #the time between SLEEPY_FROM and SLEEPY_UNTIL
 SLEEPY_UNTIL = 5
 MAX_TEXT = 300 #longest note the Hub will accept
-TOMORROW_HOUR = 9 #"snooze until tomorrow" means tomorrow at this hour
-FETCH_INTERVALS = (60, 300, 900, 1800, 3600) #Companion only reads your own notes, so it can check every minute
+TOMORROW_HOUR = 9
+FETCH_INTERVALS = (60, 300, 900, 1800, 3600) #companion only reads your own notes, so it can check every minute
 
 #For each mood, expression, names to try in order. The first one that exists in your
 #expression folder is used, so a missing name never breaks anything
@@ -114,30 +115,29 @@ def _next_due(due, rule, now):
     return due
 
 #notes, as the Hub shows and changes them
-
 def _clean_text(text):
     text = (text or "").strip()
     if not text:
-        raise ValueError("Write something first.")
+        raise ValueError(voice.error("empty"))
     if len(text) > MAX_TEXT:
-        raise ValueError(f"That's a bit long. Keep it under {MAX_TEXT} characters.")
+        raise ValueError(voice.error("too_long", limit = MAX_TEXT))
     return text
 
 def _clean_repeat(repeat):
     repeat = (repeat or "none").strip() or "none"
     if repeat not in REPEATS:
-        raise ValueError("Pick how often it repeats.")
+        raise ValueError(voice.error("repeat"))
     return repeat
 
 def _parse_when(date_text, time_text):
     try:
         return datetime.strptime(f"{date_text} {time_text}", TIME_FORMAT)
     except (ValueError, TypeError):
-        raise ValueError("Pick a date and a time.") from None
+        raise ValueError(voice.error("when")) from None
 
 def _check_not_past(due, now):
     if due < now - timedelta(minutes = 1):
-        raise ValueError("That time has already passed.")
+        raise ValueError(voice.error("past"))
 
 def _day_label(due, now):
     days = (due.date() - now.date()).days
@@ -190,7 +190,7 @@ def update_note(note_id, text, date_text = None, time_text = None, repeat = None
     now= now or datetime.now()
     rows = _connect_and_run("SELECT kind, due_at FROM companion_notes WHERE id = ?", (note_id,), fetch = True)
     if not rows:
-        raise ValueError("That note is gone.")
+        raise ValueError(voice.error("note_gone"))
     kind, stored_due = rows[0]
     text = _clean_text(text)
     if kind == "idea":
@@ -229,7 +229,7 @@ def _snooze_time(option, now):
     elif option == "tomorrow":
         later = (now + timedelta(days = 1)).replace(hour = TOMORROW_HOUR, minute = 0)
     else:
-        raise ValueError("Pick how long to snooze.")
+        raise ValueError(voice.error("snooze"))
     return later.replace(second = 0, microsecond = 0)
 
 def snooze_reminder(note_id, option, now = None):
@@ -241,7 +241,7 @@ def snooze_reminder(note_id, option, now = None):
         "SELECT text, repeat_rule FROM companion_notes WHERE id = ? AND kind = 'reminder'", (note_id,), fetch = True
     )
     if not rows:
-        raise ValueError("That reminder is gone.")
+        raise ValueError(voice.error("reminder_gone"))
     text, rule = rows[0]
     if rule == "none":
         _connect_and_run(
@@ -264,15 +264,15 @@ def _fire_reminders(now):
         if due.date() == tomorrow:
             key = f"rem:{note_id}:{due_at}:eve"
             if not db.has_item(key):
-                db.add_item(TODAY, f"Tomorrow at {due:%H:%M}: {text}", key, url = None, price = None, discount = None)
+                db.add_item(TODAY, voice.eve_item(text, f"{due:%H:%M}"), key, url = None, price = None, discount = None)
         
         if due > now:
             continue
         key = f"rem:{note_id}:{due_at}"
         if not db.has_item(key):
             late = now - due > timedelta(minutes = LATE_MINUTES)
-            when = f" (was due {due:%a %d %b, %H:%M})" if late else ""
-            db.add_item(TODAY, f"Due: {text}{when}", key, url = None, price = None, discount = None)
+            was_due = f"{due:%a %d %b, %H:%M}" if late else None
+            db.add_item(TODAY, voice.due_item(text, was_due), key, url = None, price = None, discount = None)
         
         if rule in REPEATS and rule != "none":
             _connect_and_run(
@@ -294,7 +294,7 @@ def _surface_idea(now):
     if not rows:
         return
     note_id, text = rows[0]
-    db.add_item(IDEAS, f"Idea: {text}", key, url = None, price = None, discount = None)
+    db.add_item(IDEAS, voice.idea_item(text), key, url = None, price = None, discount = None)
     _connect_and_run(
         "UPDATE companion_notes SET last_shown = ? WHERE id = ?",
         (now.strftime(TIME_FORMAT), note_id),
@@ -329,6 +329,17 @@ def _update_face(now):
     expression = _pick_expression(MOODS[_mood(now)])
     if expression and expression != bot[5]: #bot[5] is the index holding the current expression
         appearance.set_bot_appearance(BOT_ID, expression = expression)
+
+def describe_mood(now = None):
+    """How Companion feels right now, for the top of its panel in the Hub: the mood name, a greeting
+    for the time of day, and a short line that matches its face."""
+    now = now or datetime.now()
+    mood = _mood(now)
+    return {
+        "mood": mood,
+        "greeting": voice.greeting(now, mood, account.get_name()),
+        "line": voice.mood_line(mood, _count_due(now), db.get_unread_count(TODAY), db.get_unread_count(IDEAS)),
+    }
 
 _fetch_lock = threading.Lock() #the scheduler and the Hub can both ask for a check at once
 
