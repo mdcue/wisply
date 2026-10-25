@@ -17,3 +17,4 @@ def register_wisp(bot_id, name, color, channels, expression = "smiling", fetch_i
             db.set_fetch_interval(bot_id, fetch_interval)
     for position, (channel_id, title, description, channel_color) in enumerate(channels):
         db.add_channel(channel_id, title, description, channel_color, bot_id = bot_id, position = position)
+        
