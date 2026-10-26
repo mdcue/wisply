@@ -4249,9 +4249,14 @@ dependencies = [
 name = "wisply-core"
 version = "0.0.1"
 dependencies = [
+ "chrono",
+ "log",
  "rusqlite",
+ "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.21",
+ "uuid",
 ]
 
 [[package]]

@@ -1,8 +1,12 @@
 //! Wisply's core: everything that is not a window.
 //! Keeping it separate from the app means it can be built and tested without any user interface.
+pub mod account;
 pub mod legacy;
+pub mod logging;
 pub mod paths;
+pub mod scheduler;
 pub mod schema;
+pub mod store;
 
 use std::path::PathBuf;
 
@@ -26,6 +30,12 @@ pub enum Error {
 
     #[error("the old database doesn't look like a Wisply database: {0}")]
     LegacyInvalid(String),
+
+    #[error("settings file problem: {0}")]
+    Json(#[from] serde_json::Error),
+
+    #[error("{0}")]
+    Invalid(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
