@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>wisply Hub</title>
+        <link rel="stylesheet" href="dashboard.css">
+    </head>
+    <body>
+        <div id="onboarding" class="screen">
+            <div id="step-name" class="onboarding-step">
+                <h1>Welcome to wisply</h1>
+                <p>What should I call you?</p>
+                <input type="text" id="name-input" placeholder="Your name">
+                <button id="name-continue" class="cta-btn">Continue</button>
+            </div>
+
+            <div id="step-wisps" class="onboarding-step" style="display:none;">
+                <h1>Pick your wisps</h1>
+                <p>Turn on the ones you want active. You can add more later.</p>
+                <div id="gallery"></div>
+                <button id="onboarding-finish" class="cta-btn">Done</button>
+            </div>
+        </div>
+
+        <div id="app-shell" class="screen" style="display: none;">
+            <div class="app-header">
+                <div class="app-brand">
+                    <img src="../assets/icon.png" class="app-brand-icon" alt="">
+                    <h2>wisply</h2>
+                </div>
+                <button id="theme-toggle" class="theme-toggle-btn">🌙</button>
+            </div>
+
+            <div id="notification-banner" class="notif-banner" style="display: none;"></div>
+
+            <div class="tab-bar">
+                <button class="tab-btn" data-tab="dashboard">Dashboard</button>
+                <button class="tab-btn" data-tab="wisps">Wisps</button>
+                <button class="tab-btn" data-tab="discover">Discover</button>
+                <button class="tab-btn" data-tab="settings">Settings</button>
+            </div>
+
+            <div id="view-dashboard" class="tab-view">
+                <div id="activity-feed"></div>
+            </div>
+
+            <div id="view-wisps" class="tab-view" style="display: none;">
+                <div id="wisp-list"></div>
+            </div>
+
+            <div id="view-discover" class="tab-view" style="display: none;">
+                <p class="section-sub">Add more wisps to your hub.</p>
+                <div id="discover-gallery"></div>
+            </div>
+
+            <div id="view-settings" class="tab-view" style="display: none;">
+                <p class="section-sub">Adjust how often each wisp checks for updates.</p>
+                <div id="settings-list"></div>
+
+                <div class="section-footer">
+                    <p class="section-sub">Your data and log file (wisply.log) are stored on this computer.</p>
+                    <button id="open-data-btn" class="small-btn">Open data folder</button>
+
+                    <div class="quit-block">
+                        <p class="section-sub">Closing this window keeps your wisps running in the tray. Quitting stops them all until you start Wisply again.</p>
+                        <button id="quit-btn" class="danger-btn">Quit Wisply</button>
+                        <div id="quit-confirm" class="quit-confirm" style="display:none;">
+                            <span class="section-sub">Stop all wisps and quit?</span>
+                            <button id="quit-yes" class="danger-btn">Yes, quit</button>
+                            <button id="quit-no" class="small-btn">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+        <script src="dashboard.js"></script>
+    </body>
+</html>
