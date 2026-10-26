@@ -1,0 +1,12 @@
+[package]
+name = "wisply"
+version = "0.0.1"
+description = "Wisply: small single-purpose wisps in your system tray"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+wisply-core = { path = "../crates/core" }
