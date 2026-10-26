@@ -28,8 +28,11 @@ fn open_hub(app: &AppHandle) {
 fn startup_summary() -> String {
     let dir = match wisply_core::paths::data_dir() {
         Ok(dir) => dir,
-        Err(error) => return format!("Wisply: {error}"),
+         Err(error) => return format!("Wisply: {error}"),
     };
+    if let Err(error) = wisply_core::logging::init(&dir) {
+        eprintln!("could not start the log file: {error}");
+    }
     match wisply_core::open_in_dir(&dir) {
         Ok(opened) => match opened.imported {
             Some(r) => format!(
