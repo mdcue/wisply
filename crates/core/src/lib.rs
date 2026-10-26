@@ -1,12 +1,15 @@
 //! Wisply's core: everything that is not a window.
 //! Keeping it separate from the app means it can be built and tested without any user interface.
 pub mod account;
+pub mod http;
 pub mod legacy;
 pub mod logging;
 pub mod paths;
+pub mod safe;
 pub mod scheduler;
 pub mod schema;
 pub mod store;
+pub mod wisps;
 
 use std::path::PathBuf;
 
