@@ -9,3 +9,4 @@ account.json
 build/
 dist/
 shape_preview.png
+target/
