@@ -5,6 +5,7 @@ pub mod http;
 pub mod legacy;
 pub mod logging;
 pub mod paths;
+pub mod runtime;
 pub mod safe;
 pub mod scheduler;
 pub mod schema;
@@ -54,7 +55,7 @@ pub struct Opened {
 ///Opens `wisply.db` inside `dir` (creating and upgrading it).
 ///`data.db` sits besides it, the old data is imported once. The old file is never changed.
 pub fn open_in_dir(dir: &std::path::Path) -> Result<Opened> {
-    let db = dir.join("wisply.db");
+    let db = dir.join(paths::DB_FILE);
     let old = dir.join("data.db");
     let first_start = !db.exists();
     let conn = schema::open(&db)?;

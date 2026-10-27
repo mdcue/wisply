@@ -28,9 +28,12 @@ fn default_data_dir() -> PathBuf {
     home.join(".wisply")
 }
 
+/// File name of the new app's database.
+pub const DB_FILE: &str = "wisply.db";
+
 /// The new app's database. The old Python app's `data.db` is never written to.
 pub fn db_path() -> Result<PathBuf> {
-    Ok(data_dir()?.join("wisply.db"))
+    Ok(data_dir()?.join(DB_FILE))
 }
 
 /// The old Python app's database, read only by the importer.
