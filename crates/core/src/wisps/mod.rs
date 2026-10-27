@@ -2,6 +2,7 @@
 //! that checks its source. The description is what the Python app called `register_wisp`.
 
 pub mod deals;
+pub mod github;
 
 use rusqlite::Connection;
 
