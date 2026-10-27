@@ -1,6 +1,8 @@
 // Hides the extra console window in release builds on Windows.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::path::PathBuf;
+
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
@@ -24,31 +26,34 @@ fn open_hub(app: &AppHandle) {
     }
 }
 
-/// A one-line summary of the startup, shown when hovering the tray icon.
-fn startup_summary() -> String {
+/// Gets the data ready: the log file, the database (importing the old app's data on the very first
+/// start) and the three wisps. Gives back the data folder (so the checks can start) and the text
+/// for the tray icon's hover tip. If anything is wrong, there is no folder and the tip says why.
+fn startup() -> (Option<PathBuf>, String) {
     let dir = match wisply_core::paths::data_dir() {
         Ok(dir) => dir,
-         Err(error) => return format!("Wisply: {error}"),
+        Err(error) => return (None, format!("Wisply: {error}")),
     };
     if let Err(error) = wisply_core::logging::init(&dir) {
         eprintln!("could not start the log file: {error}");
     }
-    match wisply_core::open_in_dir(&dir) {
-        Ok(opened) => match opened.imported {
-            Some(r) => format!(
+    match wisply_core::runtime::prepare(&dir) {
+        Ok(Some(r)) => {
+            let tip = format!(
                 "Wisply: imported {} wisps, {} items, {} notes from the old app",
                 r.wisps, r.items, r.notes
-            ),
-            None => "Wisply".to_string(),
-        },
-        Err(error) => format!("Wisply: {error}"),
+            );
+            (Some(dir), tip)
+        }
+        Ok(None) => (Some(dir), "Wisply".to_string()),
+        Err(error) => (None, format!("Wisply: {error}")),
     }
 }
 
 fn main() {
     let app = tauri::Builder::default()
         .setup(|app| {
-            let tooltip = startup_summary();
+            let (data_dir, tooltip) = startup();
 
             let open = MenuItem::with_id(app, "open", "Open Hub", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -77,7 +82,17 @@ fn main() {
             if let Some(icon) = app.default_window_icon() {
                 tray = tray.icon(icon.clone());
             }
-            tray.build(app)?;
+            let tray = tray.build(app)?;
+
+            // Start checking the wisps in the background. Each time a round of checks finishes, the
+            // hover tip shows how many unread items there are. The handle must stay alive for as
+            // long as the app runs (dropping it would stop the checks), so the app keeps it.
+            if let Some(dir) = data_dir {
+                let handle = wisply_core::runtime::start(&dir, move |text| {
+                    let _ = tray.set_tooltip(Some(text));
+                });
+                app.manage(handle);
+            }
             Ok(())
         })
         .build(tauri::generate_context!())
