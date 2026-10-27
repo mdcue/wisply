@@ -1,6 +1,8 @@
 //! The wisps themselves. Each one has a fixed description of itself (`WispDef`) and a `Fetcher`
 //! that checks its source. The description is what the Python app called `register_wisp`.
 
+pub mod companion;
+pub mod companion_voice;
 pub mod deals;
 pub mod github;
 
