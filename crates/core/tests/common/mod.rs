@@ -11,7 +11,8 @@ use std::thread;
 
 pub struct Route {
     /// Either a path ("/stores") or a path with its query ("/deals?upperPrice=60"). The exact
-    /// address is tried first, then the path alone.
+    /// address is tried first, then any `~needle` route (it matches when the asked-for address
+    /// contains the needle, e.g. `~per_page=100`), then the path alone.
     pub target: &'static str,
     pub status: u16,
     pub body: String,
@@ -86,7 +87,11 @@ fn handle(mut stream: TcpStream, routes: &[Route], seen: &Mutex<Vec<Seen>>) {
     seen.lock().unwrap().push(Seen { target: target.clone(), headers });
 
     let path = target.split('?').next().unwrap_or("");
-    let route = routes.iter().find(|r| r.target == target).or_else(|| routes.iter().find(|r| r.target == path));
+    let route = routes
+        .iter()
+        .find(|r| r.target == target)
+        .or_else(|| routes.iter().find(|r| r.target.strip_prefix('~').is_some_and(|needle| target.contains(needle))))
+        .or_else(|| routes.iter().find(|r| r.target == path));
     let (code, body, extra) = match route {
         Some(r) => (r.status, r.body.as_str(), r.headers.as_slice()),
         None => (404, "not found", &[][..]),
