@@ -13,6 +13,8 @@ pub mod store;
 pub mod wisps;
 pub mod faces;
 pub mod icons;
+pub mod appearance;
+pub mod autostart;
 
 use std::path::PathBuf;
 

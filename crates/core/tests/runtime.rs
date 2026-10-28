@@ -150,8 +150,8 @@ fn the_scheduler_started_like_the_app_runs_checks_and_reports_the_hover_text() {
         store::set_fetch_interval(&conn, "companion", 0).unwrap(); // only at start: runs once, at once
     }
     let (send, updates) = mpsc::channel();
-    let handle = runtime::start_with(dir.path(), vec![Box::new(Counting(0))], Duration::from_millis(30), move |text| {
-        let _ = send.send(text);
+    let handle = runtime::start_with(dir.path(), vec![Box::new(Counting(0))], Duration::from_millis(30), move |update| {
+        let _ = send.send(update.tooltip);
     });
     assert!(wait_for(&updates, "Wisply: 1 unread"), "the start-up check should have run and been reported");
     handle.stop();
@@ -161,4 +161,59 @@ fn the_scheduler_started_like_the_app_runs_checks_and_reports_the_hover_text() {
 fn the_handle_can_be_kept_in_the_app_s_shared_state() {
     fn needs_send_and_sync<T: Send + Sync + 'static>() {}
     needs_send_and_sync::<Handle>();
+}
+
+/// A stand-in that finds nothing.
+struct Quiet;
+
+impl Fetcher for Quiet {
+    fn wisp_id(&self) -> &str {
+        "companion"
+    }
+    fn fetch(&mut self, _conn: &Connection) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+fn first_update(fetcher: Box<dyn Fetcher>, before_start: impl Fn(&Connection)) -> runtime::Update {
+    let dir = tempfile::tempdir().unwrap();
+    {
+        let conn = schema::open(&dir.path().join(paths::DB_FILE)).unwrap();
+        runtime::register_wisps(&conn).unwrap();
+        store::set_wisp_active(&conn, "companion", true).unwrap();
+        store::set_fetch_interval(&conn, "companion", 0).unwrap();
+        before_start(&conn);
+    }
+    let (send, updates) = mpsc::channel();
+    let handle = runtime::start_with(dir.path(), vec![fetcher], Duration::from_millis(30), move |update| {
+        let _ = send.send(update);
+    });
+    let update = updates.recv_timeout(Duration::from_secs(5)).expect("an update should arrive");
+    handle.stop();
+    update
+}
+
+#[test]
+fn an_update_carries_the_badge_and_who_found_something_new() {
+    let update = first_update(Box::new(Counting(0)), |_| {});
+    assert_eq!(
+        update,
+        runtime::Update { tooltip: "Wisply: 1 unread".into(), has_unread: true, new_from: vec!["pip".into()] }
+    );
+}
+
+#[test]
+fn items_that_were_already_there_at_start_are_not_new() {
+    let update = first_update(Box::new(Quiet), |conn| {
+        store::add_item(conn, &item("co_today", "old")).unwrap();
+    });
+    assert!(update.has_unread, "the badge still shows the old unread item");
+    assert!(update.new_from.is_empty(), "but nobody gets a pop-up for it");
+}
+
+#[test]
+fn nothing_unread_means_a_plain_icon() {
+    let conn = setup();
+    let now = runtime::status(&conn).unwrap();
+    assert_eq!(now, runtime::Update { tooltip: "Wisply".into(), has_unread: false, new_from: vec![] });
 }

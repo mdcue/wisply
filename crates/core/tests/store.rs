@@ -210,3 +210,40 @@ fn deleting_a_wisp_removes_its_channels_and_items() {
     assert!(store::wisp_channels(&conn, "deals").unwrap().is_empty());
     assert!(!store::has_item(&conn, "a").unwrap());
 }
+
+#[test]
+fn the_newest_item_number_only_goes_up() {
+    let conn = setup();
+    assert_eq!(store::newest_item_id(&conn).unwrap(), 0);
+    store::add_item(&conn, &item("deals_hot", "a", "A")).unwrap();
+    store::add_item(&conn, &item("gh_trending", "b", "B")).unwrap();
+    let newest = store::newest_item_id(&conn).unwrap();
+    assert_eq!(newest, 2);
+    store::dismiss_item(&conn, 2).unwrap();
+    assert_eq!(store::newest_item_id(&conn).unwrap(), newest, "dismissing keeps the number");
+}
+
+#[test]
+fn news_means_unread_items_newer_than_the_last_look_in_switched_on_wisps() {
+    let conn = setup();
+    store::set_wisp_active(&conn, "deals", true).unwrap();
+    store::set_wisp_active(&conn, "github", true).unwrap();
+    assert!(store::wisps_with_news_since(&conn, 0).unwrap().is_empty(), "nothing saved yet");
+
+    store::add_item(&conn, &item("deals_hot", "a", "A")).unwrap(); // 1
+    let after_first = store::newest_item_id(&conn).unwrap();
+    assert_eq!(store::wisps_with_news_since(&conn, 0).unwrap(), ["Game Deals"]);
+    assert!(store::wisps_with_news_since(&conn, after_first).unwrap().is_empty(), "already seen");
+
+    store::add_item(&conn, &item("gh_trending", "b", "B")).unwrap(); // 2
+    store::add_item(&conn, &item("deals_new", "c", "C")).unwrap(); // 3
+    assert_eq!(store::wisps_with_news_since(&conn, after_first).unwrap(), ["Game Deals", "GitHub"]);
+
+    // read or dismissed items are not news, and neither is anything from a switched-off wisp
+    store::mark_read(&conn, 2).unwrap();
+    store::dismiss_item(&conn, 3).unwrap();
+    assert!(store::wisps_with_news_since(&conn, after_first).unwrap().is_empty());
+    store::add_item(&conn, &item("gh_trending", "d", "D")).unwrap();
+    store::set_wisp_active(&conn, "github", false).unwrap();
+    assert!(store::wisps_with_news_since(&conn, after_first).unwrap().is_empty());
+}

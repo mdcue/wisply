@@ -375,12 +375,25 @@ fn shaped(art: &RgbaImage, color: Rgba<u8>, shape: Shape) -> Option<RgbaImage> {
     Some(result)
 }
 
-/// A copy with the red unread dot in the top-right corner.
+/// A copy with the red unread dot in the top-right corner. The dot is sized for a 512 pixel icon
+/// and scaled for any other size.
+pub fn with_badge(icon: &RgbaImage) -> RgbaImage {
+    add_badge(icon)
+}
+
+/// The same as `with_badge` for raw picture bytes (4 per pixel: red, green, blue, see-through, row
+/// by row). `None` if the length doesn't fit the width and height.
+pub fn badge_from_rgba(rgba: &[u8], width: u32, height: u32) -> Option<Vec<u8>> {
+    RgbaImage::from_raw(width, height, rgba.to_vec()).map(|icon| add_badge(&icon).into_raw())
+}
+
 fn add_badge(icon: &RgbaImage) -> RgbaImage {
     let mut badged = icon.clone();
-    let (cx, cy) = (icon.width() as f64 - BADGE_MARGIN, BADGE_MARGIN);
+    let scale = icon.width() as f64 / 512.0;
+    let (radius, margin) = (BADGE_RADIUS * scale, BADGE_MARGIN * scale);
+    let (cx, cy) = (icon.width() as f64 - margin, margin);
     for (x, y, pixel) in badged.enumerate_pixels_mut() {
-        if (x as f64 - cx).hypot(y as f64 - cy) <= BADGE_RADIUS {
+        if (x as f64 - cx).hypot(y as f64 - cy) <= radius {
             *pixel = BADGE_COLOR;
         }
     }

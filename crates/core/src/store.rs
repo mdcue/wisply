@@ -250,11 +250,32 @@ pub fn unread_counts(conn: &Connection) -> Result<HashMap<String, i64>> {
     Ok(pairs)
 }
 
+/// The number of the newest item ever saved (0 if there are none). Item numbers only go up, so
+/// "anything above the number I saw last time" means "new since then".
+pub fn newest_item_id(conn: &Connection) -> Result<i64> {
+    Ok(conn.query_row("SELECT COALESCE(MAX(id), 0) FROM items", [], |row| row.get(0))?)
+}
+
+/// The names of the switched-on wisps that have unread items newer than `after_id` (see
+/// `newest_item_id`), in the wisps' usual order. This is what decides who gets a pop-up.
+pub fn wisps_with_news_since(conn: &Connection, after_id: i64) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT wisps.name FROM wisps
+            WHERE wisps.active = 1 AND EXISTS (
+                SELECT 1 FROM items JOIN channels ON items.channel_id = channels.id
+                WHERE channels.wisp_id = wisps.id AND items.id > ?1
+                AND items.read = 0 AND items.dismissed = 0)
+            ORDER BY wisps.position, wisps.id",
+    )?;
+    let names = stmt.query_map([after_id], |row| row.get::<_, String>(0))?.collect::<std::result::Result<Vec<_>, _>>()?;
+    Ok(names)
+}
+
 /// A channel's items, newest first. `limit` caps how many come back (`None` means all).
 pub fn items(conn: &Connection, channel_id: &str, limit: Option<i64>) -> Result<Vec<Item>> {
     let mut stmt = conn.prepare(
         "SELECT id, text, read, url, price, discount_percent, stars FROM items
-         WHERE channel_id = ?1 AND dismissed = 0 ORDER BY id DESC LIMIT ?2",
+        WHERE channel_id = ?1 AND dismissed = 0 ORDER BY id DESC LIMIT ?2",
     )?;
     let items = stmt
         .query_map(params![channel_id, limit.unwrap_or(-1)], |row| {
@@ -276,11 +297,11 @@ pub fn items(conn: &Connection, channel_id: &str, limit: Option<i64>) -> Result<
 pub fn recent_items(conn: &Connection, limit: i64) -> Result<Vec<FeedEntry>> {
     let mut stmt = conn.prepare(
         "SELECT items.id, items.text, items.read, items.url, items.channel_id, wisps.id, wisps.name
-         FROM items
-         JOIN channels ON items.channel_id = channels.id
-         JOIN wisps ON channels.wisp_id = wisps.id
-         WHERE wisps.active = 1 AND items.dismissed = 0
-         ORDER BY items.id DESC LIMIT ?1",
+        FROM items
+        JOIN channels ON items.channel_id = channels.id
+        JOIN wisps ON channels.wisp_id = wisps.id
+        WHERE wisps.active = 1 AND items.dismissed = 0
+        ORDER BY items.id DESC LIMIT ?1",
     )?;
     let entries = stmt
         .query_map([limit], |row| {

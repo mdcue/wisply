@@ -3,6 +3,7 @@
 //! can be tested without a window is tested here.
 
 use std::path::Path;
+use std::sync::Mutex;
 use std::time::Duration;
 
 use rusqlite::Connection;
@@ -13,7 +14,8 @@ use crate::wisps::deals::{self, DealsFetcher};
 use crate::wisps::github::{self, GithubFetcher};
 use crate::{paths, schema, store, Result};
 
-/// The face names that exist (the pictures built into the program, see `faces`).
+/// The face names that exist (the pictures built into the program, see `faces`). Companion picks
+/// its mood face from these.
 pub const FACES: &[&str] = crate::faces::NAMES;
 
 /// Opens (and if needed creates, upgrades or imports) the database in `data_dir`, and sets up the
@@ -54,36 +56,80 @@ pub fn fetchers() -> Vec<Box<dyn Fetcher>> {
 
 /// The text for the tray icon's hover tip: how many unread items the switched-on wisps have.
 pub fn tooltip(conn: &Connection) -> Result<String> {
+    Ok(status(conn)?.tooltip)
+}
+
+/// What the tray needs to show after each round of checks.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Update {
+    /// The hover tip: "Wisply" or "Wisply: N unread" (switched-on wisps only).
+    pub tooltip: String,
+    /// Whether the tray icon should wear the red dot.
+    pub has_unread: bool,
+    /// Names of the switched-on wisps that found something new since the last update; each one
+    /// gets a pop-up.
+    pub new_from: Vec<String>,
+}
+
+/// The tooltip and badge as things stand now (nothing counts as new).
+pub fn status(conn: &Connection) -> Result<Update> {
     let mut unread = 0;
     for wisp in store::active_wisps(conn)? {
         unread += store::wisp_unread(conn, &wisp.id)?;
     }
-    Ok(if unread == 0 { "Wisply".to_string() } else { format!("Wisply: {unread} unread") })
+    let tooltip = if unread == 0 { "Wisply".to_string() } else { format!("Wisply: {unread} unread") };
+    Ok(Update { tooltip, has_unread: unread > 0, new_from: Vec::new() })
 }
 
-/// Starts checking the wisps in the background (see `scheduler`). `on_update` gets the new hover
-/// text each time a round of checks finishes. Keep the returned handle for as long as the app
-/// runs: dropping it stops the scheduler.
-pub fn start(data_dir: &Path, on_update: impl Fn(String) + Send + 'static) -> Handle {
-    start_with(data_dir, fetchers(), scheduler::TICK, on_update)
+/// `status` for the database in `data_dir` (used when the app starts, to show the right icon).
+pub fn status_in(data_dir: &Path) -> Result<Update> {
+    status(&schema::open(&data_dir.join(paths::DB_FILE))?)
 }
 
-/// Like `start`, with your own fetchers and tick length (used by tests).
+/// Starts checking the wisps in the background (see `scheduler`). `on_update` is called each time
+/// a round of checks finishes, with what the tray should show. Keep the returned handle for as
+/// long as the app runs: dropping it stops the scheduler. After each round the wisps' icons are
+/// redrawn if a colour or face changed (for example when pip's mood changes).
+pub fn start(data_dir: &Path, on_update: impl Fn(Update) + Send + 'static) -> Handle {
+    let dir = data_dir.to_path_buf();
+    start_with(data_dir, fetchers(), scheduler::TICK, move |update| {
+        refresh_icons(&dir);
+        on_update(update);
+    })
+}
+
+/// Redraws any wisp icon that is missing or out of date (see `appearance::ensure_icons`). Problems
+/// are logged, never fatal.
+pub fn refresh_icons(data_dir: &Path) {
+    let result = schema::open(&data_dir.join(paths::DB_FILE))
+        .and_then(|conn| crate::appearance::ensure_icons(&conn, data_dir));
+    if let Err(error) = result {
+        log::warn!("could not refresh the wisp icons: {error}");
+    }
+}
+
+/// Like `start`, with your own fetchers and tick length, and without redrawing icons (used by tests).
 pub fn start_with(
     data_dir: &Path,
     fetchers: Vec<Box<dyn Fetcher>>,
     tick: Duration,
-    on_update: impl Fn(String) + Send + 'static,
+    on_update: impl Fn(Update) + Send + 'static,
 ) -> Handle {
     let db_path = data_dir.join(paths::DB_FILE);
-    let for_text = db_path.clone();
-    scheduler::spawn(db_path, fetchers, tick, move || match hover_text(&for_text) {
-        Ok(text) => on_update(text),
+    // Items up to this number were already there when the app started; only newer ones are "new".
+    let seen = Mutex::new(schema::open(&db_path).and_then(|c| store::newest_item_id(&c)).unwrap_or(0));
+    scheduler::spawn(db_path.clone(), fetchers, tick, move || match build_update(&db_path, &seen) {
+        Ok(update) => on_update(update),
         Err(error) => log::warn!("could not count unread items: {error}"),
     })
 }
 
-/// Opens the database for a moment and builds the hover text.
-fn hover_text(db_path: &Path) -> Result<String> {
-    tooltip(&schema::open(db_path)?)
+/// Opens the database for a moment, works out what is new since last time, and builds the update.
+fn build_update(db_path: &Path, seen: &Mutex<i64>) -> Result<Update> {
+    let conn = schema::open(db_path)?;
+    let mut update = status(&conn)?;
+    let mut last = seen.lock().unwrap_or_else(|e| e.into_inner());
+    update.new_from = store::wisps_with_news_since(&conn, *last)?;
+    *last = store::newest_item_id(&conn)?;
+    Ok(update)
 }
