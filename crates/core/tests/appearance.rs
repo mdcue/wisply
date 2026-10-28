@@ -94,9 +94,9 @@ fn the_badge_is_scaled_for_other_icon_sizes() {
     let small = image::RgbaImage::from_pixel(64, 64, image::Rgba([10, 20, 30, 255]));
     let badged = icons::with_badge(&small);
     assert_eq!(badged.dimensions(), (64, 64));
-    assert_eq!(badged.get_pixel(64 - 6, 6).0, [230, 60, 60, 255], "dot near the top-right corner");
+    assert_eq!(badged.get_pixel(64 - 9, 9).0, [230, 60, 60, 255], "dot near the top-right corner");
     assert_eq!(badged.get_pixel(5, 60).0, [10, 20, 30, 255], "the rest is untouched");
-    assert_eq!(badged.get_pixel(64 - 6, 6 + 7).0[0], 10, "dot is small: radius is 44/512 of the width");
+    assert_eq!(badged.get_pixel(64 - 9, 9 + 10).0[0], 10, "the dot's radius is 66/512 of the width, no more");
 }
 
 #[test]

@@ -23,8 +23,10 @@ use image::{GrayImage, ImageFormat, Luma, Rgba, RgbaImage};
 use crate::faces;
 
 const BADGE_COLOR: Rgba<u8> = Rgba([230, 60, 60, 255]);
-const BADGE_RADIUS: f64 = 44.0;
-const BADGE_MARGIN: f64 = 50.0;
+/// The dot is bigger than the Python app's (44 px) so it can be seen at tray size. It is sized for
+/// a 512 pixel icon; the margin equals the radius so the dot sits right in the corner.
+const BADGE_RADIUS: f64 = 66.0;
+const BADGE_MARGIN: f64 = 70.0;
 
 /// Shapes are drawn this many times larger, then shrunk, for smooth edges.
 const SUPERSAMPLE: u32 = 4;

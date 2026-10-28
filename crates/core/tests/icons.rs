@@ -74,14 +74,14 @@ fn diamond_icons_match_python() {
 }
 
 #[test]
-fn badge_icon_matches_python_and_only_changes_the_corner() {
+fn the_badge_is_a_red_dot_in_the_corner_and_changes_nothing_else() {
     let icon = icons::generate("happy", "#4CAF50", Shape::Hexagon).unwrap();
-    let (average, clear) = difference(&icon.badge, &reference("happy_4CAF50_hexagon_badge"));
-    assert!(average < 0.6 && clear < 0.01, "{average} {clear}");
     let (w, _) = icon.plain.dimensions();
-    assert_eq!(icon.badge.get_pixel(w - 50, 50).0, [230, 60, 60, 255]);
+    assert_eq!(icon.badge.get_pixel(w - 70, 70).0, [230, 60, 60, 255]);
+    assert_eq!(icon.badge.get_pixel(w - 70 + 60, 70).0, [230, 60, 60, 255], "the dot is 66 px across from its centre");
+    assert!(icon.badge.get_pixel(w - 1, 0).0[3] == 0 || icon.badge.get_pixel(w - 1, 0) == icon.plain.get_pixel(w - 1, 0));
     for (x, y, p) in icon.plain.enumerate_pixels() {
-        let far = ((x as f64 - (w - 50) as f64).hypot(y as f64 - 50.0)) > 46.0;
+        let far = ((x as f64 - (w - 70) as f64).hypot(y as f64 - 70.0)) > 68.0;
         if far {
             assert_eq!(p, icon.badge.get_pixel(x, y));
         }
