@@ -13,10 +13,8 @@ use crate::wisps::deals::{self, DealsFetcher};
 use crate::wisps::github::{self, GithubFetcher};
 use crate::{paths, schema, store, Result};
 
-/// The face names that exist for now (the picture files in `ui/assets/expressions`). Companion
-/// picks its mood face from these. R4 replaces this list with the real icon system.
-pub const FACES: [&str; 10] =
-    ["blank", "content", "happy", "kiss", "laughing", "nervous", "shout", "smiling", "surprised", "tongue"];
+/// The face names that exist (the pictures built into the program, see `faces`).
+pub const FACES: &[&str] = crate::faces::NAMES;
 
 /// Opens (and if needed creates, upgrades or imports) the database in `data_dir`, and sets up the
 /// three wisps. Returns what was imported from the old Python app, if this was the first start.

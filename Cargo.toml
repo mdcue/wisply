@@ -1,3 +1,7 @@
 [workspace]
 members = ["crates/core", "src-tauri"]
 resolver = "2"
+[profile.dev.package.wisply-core]
+opt-level = 3
+[profile.dev.package.image]
+opt-level = 3

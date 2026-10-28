@@ -11,6 +11,8 @@ pub mod scheduler;
 pub mod schema;
 pub mod store;
 pub mod wisps;
+pub mod faces;
+pub mod icons;
 
 use std::path::PathBuf;
 
