@@ -54,6 +54,11 @@ pub fn fetchers() -> Vec<Box<dyn Fetcher>> {
     ]
 }
 
+/// The fetcher for one wisp, if there is such a wisp.
+pub fn fetcher_for(wisp_id: &str) -> Option<Box<dyn Fetcher>> {
+    fetchers().into_iter().find(|f| f.wisp_id() == wisp_id)
+}
+
 /// The text for the tray icon's hover tip: how many unread items the switched-on wisps have.
 pub fn tooltip(conn: &Connection) -> Result<String> {
     Ok(status(conn)?.tooltip)

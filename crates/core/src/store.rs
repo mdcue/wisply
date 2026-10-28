@@ -319,6 +319,13 @@ pub fn recent_items(conn: &Connection, limit: i64) -> Result<Vec<FeedEntry>> {
     Ok(entries)
 }
 
+/// The link stored with an item, if it has one.
+pub fn item_url(conn: &Connection, item_id: i64) -> Result<Option<String>> {
+    let url: Option<Option<String>> =
+        conn.query_row("SELECT url FROM items WHERE id = ?1", [item_id], |row| row.get(0)).optional()?;
+    Ok(url.flatten())
+}
+
 pub fn mark_read(conn: &Connection, item_id: i64) -> Result<()> {
     conn.execute("UPDATE items SET read = 1 WHERE id = ?1", [item_id])?;
     Ok(())
