@@ -16,6 +16,7 @@ pub mod icons;
 pub mod appearance;
 pub mod autostart;
 pub mod hub;
+pub mod placement;
 
 use std::path::PathBuf;
 

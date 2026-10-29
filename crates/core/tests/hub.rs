@@ -1,5 +1,4 @@
 //! Tests for everything the Hub page asks for (the Rust version of the Python `bridge.py`).
-
 use chrono::{Local, NaiveDate, NaiveDateTime, TimeZone};
 use rusqlite::Connection;
 use wisply_core::hub::{self, Hub};
@@ -35,8 +34,7 @@ fn json<T: serde::Serialize>(value: &T) -> serde_json::Value {
     serde_json::to_value(value).unwrap()
 }
 
-// --- small helpers ---
-
+//small helpers
 #[test]
 fn base64_matches_the_standard_test_vectors() {
     for (plain, coded) in
@@ -64,8 +62,7 @@ fn intervals_are_per_wisp() {
     assert_eq!(hub::intervals("anything_else"), hub::DEFAULT_INTERVALS);
 }
 
-// --- account ---
-
+// account
 #[test]
 fn an_account_can_be_made_once_there_is_a_name() {
     let (dir, hub) = setup();
@@ -77,8 +74,7 @@ fn an_account_can_be_made_once_there_is_a_name() {
     assert_eq!(wisply_core::account::get_name(dir.path()).as_deref(), Some("Sam"));
 }
 
-// --- wisps ---
-
+//wisps
 #[test]
 fn the_faces_on_offer_are_the_ten_pictures() {
     let (_dir, hub) = setup();
@@ -175,8 +171,7 @@ fn intervals_are_kept_sensible() {
     }
 }
 
-// --- items ---
-
+// items
 #[test]
 fn channels_show_ten_newest_items_the_unread_count_and_the_page_s_field_names() {
     let (dir, hub) = setup();
@@ -260,8 +255,7 @@ fn opening_an_item_reads_it_and_only_gives_out_safe_links_from_the_database() {
     assert_eq!(store::unread_count(&c, "gh_day").unwrap(), 0, "opening marks read, even with no link");
 }
 
-// --- checking ---
-
+//checking
 struct Finds(u32);
 impl Fetcher for Finds {
     fn wisp_id(&self) -> &str {
@@ -320,8 +314,7 @@ fn companion_can_be_checked_by_name_without_the_internet() {
     assert!(report.ok);
 }
 
-// --- Companion ---
-
+//Companion
 #[test]
 fn saving_an_idea_or_reminder_says_so_in_pips_voice() {
     let (_dir, hub) = setup();
@@ -405,4 +398,30 @@ fn trouble_that_is_not_the_users_fault_gets_a_general_apology() {
     let result = hub.companion_add_idea("hello");
     assert!(!result.ok);
     assert!(result.error.unwrap().starts_with("Something went wrong"));
+}
+
+//the small add-a-note windows
+#[test]
+fn the_quick_add_windows_know_their_words_and_whether_pip_is_on() {
+    let (_dir, hub) = setup();
+    let off = hub.quick_add_info().unwrap();
+    assert!(!off.companion_on);
+    assert_eq!(off.off_message, voice::COMPANION_OFF);
+    assert_eq!((off.idea_title, off.reminder_title), (voice::IDEA_WINDOW, voice::REMINDER_WINDOW));
+    assert_eq!((off.idea_placeholder, off.reminder_placeholder), (voice::IDEA_PLACEHOLDER, voice::REMINDER_PLACEHOLDER));
+    assert_eq!(off.max_text, 300);
+    let values: Vec<_> = off.repeats.iter().map(|r| r.value).collect();
+    assert_eq!(values, ["none", "daily", "weekly", "monthly", "yearly"]);
+    assert_eq!(off.repeats[0].label, "Doesn't repeat");
+
+    hub.toggle_active("companion").unwrap();
+    assert!(hub.quick_add_info().unwrap().companion_on);
+}
+
+#[test]
+fn every_repeat_choice_is_one_the_reminders_accept() {
+    let (_dir, hub) = setup();
+    for choice in hub::REPEAT_CHOICES {
+        assert!(hub.companion_add_reminder("x", "2026-10-30", "10:00", choice.value).ok, "{}", choice.value);
+    }
 }

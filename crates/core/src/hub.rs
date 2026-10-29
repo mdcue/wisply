@@ -4,7 +4,6 @@
 //! page already reads.
 //!
 //! Each call opens the database for a moment (cheap, and it means calls from any thread are safe).
-
 use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
@@ -91,7 +90,6 @@ pub struct NotesView {
     pub empty_reminders: &'static str,
     pub empty_ideas: &'static str,
 }
-
 /// The answer to adding, changing or removing a note: it worked (with Companion's cheerful
 /// confirmation, if there is one), or here is a sentence to show.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -102,6 +100,34 @@ pub struct ChangeResult {
     pub message: Option<String>,
 }
 
+/// One choice in the "repeat" list of the reminder form.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RepeatChoice {
+    pub value: &'static str,
+    pub label: &'static str,
+}
+
+/// How often a reminder can repeat, as the form offers it.
+pub const REPEAT_CHOICES: [RepeatChoice; 5] = [
+    RepeatChoice { value: "none", label: "Doesn't repeat" },
+    RepeatChoice { value: "daily", label: "Every day" },
+    RepeatChoice { value: "weekly", label: "Every week" },
+    RepeatChoice { value: "monthly", label: "Every month" },
+    RepeatChoice { value: "yearly", label: "Every year" },
+];
+/// Everything the small "add an idea / add a reminder" windows need to draw themselves.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct QuickAddInfo {
+    /// Whether pip is switched on. If not, notes can't be kept and the window says so instead.
+    pub companion_on: bool,
+    pub off_message: &'static str,
+    pub idea_title: &'static str,
+    pub reminder_title: &'static str,
+    pub idea_placeholder: &'static str,
+    pub reminder_placeholder: &'static str,
+    pub max_text: usize,
+    pub repeats: Vec<RepeatChoice>,
+}
 /// How a manual or first check went.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct FetchReport {
@@ -110,7 +136,6 @@ pub struct FetchReport {
     /// How many more unread items the wisp has than before the check (never below 0).
     pub new_items: i64,
 }
-
 /// The Hub's view of the app's data. Cheap to make; keep one for the life of the app.
 pub struct Hub {
     dir: PathBuf,
@@ -141,8 +166,7 @@ impl Hub {
         (self.clock)()
     }
 
-    // ---- account ----
-
+    //account
     pub fn account_exists(&self) -> bool {
         account::exists(&self.dir)
     }
@@ -160,8 +184,7 @@ impl Hub {
         }
     }
 
-    // ---- wisps ----
-
+    //wisps
     /// The faces a wisp can wear.
     pub fn expressions(&self) -> Vec<&'static str> {
         faces::NAMES.to_vec()
@@ -315,8 +338,7 @@ impl Hub {
         Ok(store::item_url(&conn, item_id)?.filter(|url| url.starts_with("https://")))
     }
 
-    // ---- checking ----
-
+    // checking
     /// Runs one wisp's check right now (on this thread, which may take a while for the internet
     /// wisps). `None` if there is no such wisp.
     pub fn fetch_now(&self, wisp_id: &str) -> Result<Option<FetchReport>> {
@@ -348,7 +370,21 @@ impl Hub {
         Ok(FetchReport { wisp_id: id, ok, new_items: (after - before).max(0) })
     }
 
-    // ---- Companion ----
+    //Companion
+    pub fn quick_add_info(&self) -> Result<QuickAddInfo> {
+        let conn = self.conn()?;
+        let on = store::get_wisp(&conn, companion::DEF.id)?.is_some_and(|w| w.active);
+        Ok(QuickAddInfo {
+            companion_on: on,
+            off_message: voice::COMPANION_OFF,
+            idea_title: voice::IDEA_WINDOW,
+            reminder_title: voice::REMINDER_WINDOW,
+            idea_placeholder: voice::IDEA_PLACEHOLDER,
+            reminder_placeholder: voice::REMINDER_PLACEHOLDER,
+            max_text: companion::MAX_TEXT,
+            repeats: REPEAT_CHOICES.to_vec(),
+        })
+    }
 
     pub fn companion_notes(&self) -> Result<NotesView> {
         let conn = self.conn()?;
