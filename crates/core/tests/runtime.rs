@@ -198,7 +198,7 @@ fn an_update_carries_the_badge_and_who_found_something_new() {
     let update = first_update(Box::new(Counting(0)), |_| {});
     assert_eq!(
         update,
-        runtime::Update { tooltip: "Wisply: 1 unread".into(), has_unread: true, new_from: vec!["pip".into()] }
+        runtime::Update { tooltip: "Wisply: 1 unread".into(), has_unread: true, new_from: vec![("pip".into(), 1)] }
     );
 }
 

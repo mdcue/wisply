@@ -232,12 +232,15 @@ fn news_means_unread_items_newer_than_the_last_look_in_switched_on_wisps() {
 
     store::add_item(&conn, &item("deals_hot", "a", "A")).unwrap(); // 1
     let after_first = store::newest_item_id(&conn).unwrap();
-    assert_eq!(store::wisps_with_news_since(&conn, 0).unwrap(), ["Game Deals"]);
+    assert_eq!(store::wisps_with_news_since(&conn, 0).unwrap(), [("Game Deals".to_string(), 1)]);
     assert!(store::wisps_with_news_since(&conn, after_first).unwrap().is_empty(), "already seen");
 
     store::add_item(&conn, &item("gh_trending", "b", "B")).unwrap(); // 2
     store::add_item(&conn, &item("deals_new", "c", "C")).unwrap(); // 3
-    assert_eq!(store::wisps_with_news_since(&conn, after_first).unwrap(), ["Game Deals", "GitHub"]);
+    assert_eq!(
+        store::wisps_with_news_since(&conn, after_first).unwrap(),
+        [("Game Deals".to_string(), 1), ("GitHub".to_string(), 1)]
+    );
 
     // read or dismissed items are not news, and neither is anything from a switched-off wisp
     store::mark_read(&conn, 2).unwrap();

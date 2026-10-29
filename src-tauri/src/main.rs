@@ -1,19 +1,25 @@
 // Hides the extra console window in release builds on Windows.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod bridge;
+mod tray;
+
 use std::path::PathBuf;
 
-use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
-use tauri_plugin_notification::NotificationExt;
+use tauri::{AppHandle, Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+use wisply_core::hub::Hub;
 use wisply_core::{autostart, runtime};
 
 const HUB_LABEL: &str = "hub";
 
-/// Shows the Hub, creating the window the first time it is needed.
+/// Shows the Hub, creating the window the first time it is needed. (Without a data folder there is
+/// nothing to show, so nothing opens.)
 fn open_hub(app: &AppHandle) {
+    if app.try_state::<Hub>().is_none() {
+        return;
+    }
     if let Some(window) = app.get_webview_window(HUB_LABEL) {
         let _ = window.show();
         let _ = window.set_focus();
@@ -53,15 +59,6 @@ fn startup() -> (Option<PathBuf>, String) {
     }
 }
 
-/// The app's icon, and the same icon with the red "something is unread" dot.
-fn tray_icons(app: &tauri::App) -> Option<(Image<'static>, Image<'static>)> {
-    let base = app.default_window_icon()?;
-    let (width, height) = (base.width(), base.height());
-    let plain = Image::new_owned(base.rgba().to_vec(), width, height);
-    let badge = Image::new_owned(wisply_core::icons::badge_from_rgba(base.rgba(), width, height)?, width, height);
-    Some((plain, badge))
-}
-
 fn main() {
     let app = tauri::Builder::default()
         // Must come first. A second copy of Wisply doesn't start: it asks this one to show the Hub
@@ -72,8 +69,42 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![
+            bridge::account_exists,
+            bridge::create_account,
+            bridge::get_expressions,
+            bridge::get_wisps,
+            bridge::get_settings_wisps,
+            bridge::rename_wisp,
+            bridge::recolor_wisp,
+            bridge::set_expression,
+            bridge::set_fetch_interval,
+            bridge::toggle_active,
+            bridge::fetch_now,
+            bridge::get_channels,
+            bridge::get_activity_feed,
+            bridge::mark_item_read,
+            bridge::mark_all_read,
+            bridge::dismiss_item,
+            bridge::clear_read,
+            bridge::open_item,
+            bridge::companion_notes,
+            bridge::companion_mood,
+            bridge::companion_add_reminder,
+            bridge::companion_add_idea,
+            bridge::companion_update,
+            bridge::companion_complete,
+            bridge::companion_snooze,
+            bridge::companion_delete,
+            bridge::open_data_folder,
+            bridge::quit_app,
+        ])
         .setup(|app| {
             let (data_dir, tooltip) = startup();
+            if let Some(dir) = &data_dir {
+                app.manage(Hub::new(dir));
+            }
 
             let open = MenuItem::with_id(app, "open", "Open Hub", true, None::<&str>)?;
             let start_with_windows =
@@ -84,7 +115,7 @@ fn main() {
                 &[&open, &PredefinedMenuItem::separator(app)?, &start_with_windows, &quit],
             )?;
 
-            let icons = tray_icons(app);
+            let icons = tray::icons_of(app);
             let unread_at_start = data_dir.as_deref().and_then(|dir| runtime::status_in(dir).ok());
             let wearing_badge = unread_at_start.as_ref().is_some_and(|u| u.has_unread);
 
@@ -95,7 +126,7 @@ fn main() {
                 tooltip
             };
 
-            let mut tray = TrayIconBuilder::new()
+            let mut builder = TrayIconBuilder::new()
                 .tooltip(first_tip)
                 .menu(&menu)
                 .show_menu_on_left_click(false)
@@ -125,9 +156,9 @@ fn main() {
                     }
                 });
             if let Some((plain, badge)) = &icons {
-                tray = tray.icon(if wearing_badge { badge.clone() } else { plain.clone() });
+                builder = builder.icon(if wearing_badge { badge.clone() } else { plain.clone() });
             }
-            let tray = tray.build(app)?;
+            app.manage(tray::TrayState { tray: builder.build(app)?, icons });
 
             if let Some(dir) = data_dir {
                 // Draw any missing or out-of-date wisp icons, off to the side so start-up isn't held up.
@@ -135,26 +166,14 @@ fn main() {
                 std::thread::spawn(move || runtime::refresh_icons(&for_icons));
 
                 // Start checking the wisps in the background. After each round the tray shows the
-                // unread count and the red dot, and every wisp that found something gets a pop-up.
-                // The handle must stay alive for as long as the app runs (dropping it would stop the
-                // checks), so the app keeps it.
+                // unread count and the red dot, the Hub (if open) redraws, and every wisp that found
+                // something gets a pop-up. The handle must stay alive for as long as the app runs
+                // (dropping it would stop the checks), so the app keeps it.
                 let app_handle = app.handle().clone();
                 let handle = runtime::start(&dir, move |update| {
-                    let _ = tray.set_tooltip(Some(update.tooltip));
-                    if let Some((plain, badge)) = &icons {
-                        let _ = tray.set_icon(Some(if update.has_unread { badge.clone() } else { plain.clone() }));
-                    }
-                    for name in update.new_from {
-                        let shown = app_handle
-                            .notification()
-                            .builder()
-                            .title("Wisply")
-                            .body(format!("{name} has something new for you"))
-                            .show();
-                        if let Err(error) = shown {
-                            log::warn!("could not show a pop-up: {error}");
-                        }
-                    }
+                    tray::show(&app_handle, &update);
+                    tray::announce(&app_handle, &update);
+                    let _ = app_handle.emit("data-changed", ());
                 });
                 app.manage(handle);
             }

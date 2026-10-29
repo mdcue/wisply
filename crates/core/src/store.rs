@@ -256,19 +256,21 @@ pub fn newest_item_id(conn: &Connection) -> Result<i64> {
     Ok(conn.query_row("SELECT COALESCE(MAX(id), 0) FROM items", [], |row| row.get(0))?)
 }
 
-/// The names of the switched-on wisps that have unread items newer than `after_id` (see
-/// `newest_item_id`), in the wisps' usual order. This is what decides who gets a pop-up.
-pub fn wisps_with_news_since(conn: &Connection, after_id: i64) -> Result<Vec<String>> {
+/// For each switched-on wisp that has unread items newer than `after_id` (see `newest_item_id`):
+/// its name and how many such items, in the wisps' usual order. This decides who gets a pop-up.
+pub fn wisps_with_news_since(conn: &Connection, after_id: i64) -> Result<Vec<(String, i64)>> {
     let mut stmt = conn.prepare(
-        "SELECT wisps.name FROM wisps
-            WHERE wisps.active = 1 AND EXISTS (
-                SELECT 1 FROM items JOIN channels ON items.channel_id = channels.id
-                WHERE channels.wisp_id = wisps.id AND items.id > ?1
-                AND items.read = 0 AND items.dismissed = 0)
-            ORDER BY wisps.position, wisps.id",
+        "SELECT wisps.name, COUNT(items.id) FROM wisps
+        JOIN channels ON channels.wisp_id = wisps.id
+        JOIN items ON items.channel_id = channels.id
+        WHERE wisps.active = 1 AND items.id > ?1 AND items.read = 0 AND items.dismissed = 0
+        GROUP BY wisps.id
+        ORDER BY wisps.position, wisps.id",
     )?;
-    let names = stmt.query_map([after_id], |row| row.get::<_, String>(0))?.collect::<std::result::Result<Vec<_>, _>>()?;
-    Ok(names)
+    let news = stmt
+        .query_map([after_id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Ok(news)
 }
 
 /// A channel's items, newest first. `limit` caps how many come back (`None` means all).

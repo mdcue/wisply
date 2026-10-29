@@ -128,6 +128,11 @@ impl Hub {
         self
     }
 
+    /// The data folder this Hub reads from.
+    pub fn data_dir(&self) -> &Path {
+        &self.dir
+    }
+
     fn conn(&self) -> Result<Connection> {
         schema::open(&self.dir.join(paths::DB_FILE))
     }

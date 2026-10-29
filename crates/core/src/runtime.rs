@@ -71,9 +71,9 @@ pub struct Update {
     pub tooltip: String,
     /// Whether the tray icon should wear the red dot.
     pub has_unread: bool,
-    /// Names of the switched-on wisps that found something new since the last update; each one
-    /// gets a pop-up.
-    pub new_from: Vec<String>,
+    /// The switched-on wisps that found something new since the last update, with how many new
+    /// items each found; each one gets a pop-up.
+    pub new_from: Vec<(String, i64)>,
 }
 
 /// The tooltip and badge as things stand now (nothing counts as new).
