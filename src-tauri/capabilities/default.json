@@ -1,6 +1,6 @@
 {
-"identifier": "default",
-"description": "What the Hub window may do besides calling Wisply's own commands: listen for updates.",
-"windows": ["hub"],
-"permissions": ["core:event:default"]
+  "identifier": "default",
+  "description": "What the Hub and the tray pop-up may do besides calling Wisply's own commands: listen for updates.",
+  "windows": ["hub", "popup"],
+  "permissions": ["core:event:default"]
 }

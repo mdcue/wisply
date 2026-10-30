@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod bridge;
+mod popup;
 mod tray;
 
 use std::path::PathBuf;
@@ -16,7 +17,7 @@ const HUB_LABEL: &str = "hub";
 
 /// Shows the Hub, creating the window the first time it is needed. (Without a data folder there is
 /// nothing to show, so nothing opens.)
-fn open_hub(app: &AppHandle) {
+pub(crate) fn open_hub(app: &AppHandle) {
     if app.try_state::<Hub>().is_none() {
         return;
     }
@@ -99,11 +100,21 @@ fn main() {
             bridge::companion_delete,
             bridge::open_data_folder,
             bridge::quit_app,
+            bridge::popup_ready,
+            bridge::popup_hide,
+            bridge::open_hub_window,
         ])
         .setup(|app| {
             let (data_dir, tooltip) = startup();
             if let Some(dir) = &data_dir {
                 app.manage(Hub::new(dir));
+            }
+            // The tray pop-up: made now (hidden), so a click on the tray opens it at once.
+            app.manage(popup::PopupState::default());
+            if data_dir.is_some() {
+                if let Err(error) = popup::create(app.handle()) {
+                    log::warn!("could not make the tray pop-up: {error}");
+                }
             }
 
             let open = MenuItem::with_id(app, "open", "Open Hub", true, None::<&str>)?;
@@ -149,10 +160,19 @@ fn main() {
                     if let TrayIconEvent::Click {
                         button: MouseButton::Left,
                         button_state: MouseButtonState::Up,
+                        rect,
+                        position,
                         ..
                     } = event
                     {
-                        open_hub(tray.app_handle());
+                        let app = tray.app_handle();
+                        match app.try_state::<Hub>() {
+                            // Without a data folder there is nothing to show.
+                            None => {}
+                            // Before setup the Hub is where you introduce yourself.
+                            Some(hub) if !hub.account_exists() => open_hub(app),
+                            Some(_) => popup::toggle(app, popup::anchor_of(&rect, position)),
+                        }
                     }
                 });
             if let Some((plain, badge)) = &icons {

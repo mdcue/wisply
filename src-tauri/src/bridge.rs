@@ -9,7 +9,7 @@ use wisply_core::hub::{
 };
 use wisply_core::wisps::companion::Feeling;
 
-use crate::tray;
+use crate::{popup, tray};
 
 /// Turns the core's error into text for the page, and keeps the details in the log.
 fn logged<T>(what: &str, result: wisply_core::Result<T>) -> Result<T, String> {
@@ -49,8 +49,7 @@ fn companion_changed(app: &AppHandle, result: ChangeResult) -> ChangeResult {
     result
 }
 
-// ---- account ----
-
+//account
 #[tauri::command(async)]
 pub fn account_exists(hub: State<'_, Hub>) -> bool {
     hub.account_exists()
@@ -61,8 +60,7 @@ pub fn create_account(hub: State<'_, Hub>, name: String) -> bool {
     hub.create_account(&name)
 }
 
-// ---- wisps ----
-
+//wisps
 #[tauri::command(async)]
 pub fn get_expressions(hub: State<'_, Hub>) -> Vec<&'static str> {
     hub.expressions()
@@ -121,8 +119,7 @@ pub fn fetch_now(app: AppHandle, wisp_id: String) {
     check_in_background(&app, &wisp_id);
 }
 
-// ---- items ----
-
+//items
 #[tauri::command(async)]
 pub fn get_channels(hub: State<'_, Hub>, wisp_id: String) -> Result<Vec<ChannelView>, String> {
     logged("get_channels", hub.channels(&wisp_id))
@@ -175,8 +172,7 @@ pub fn open_item(app: AppHandle, hub: State<'_, Hub>, item_id: i64) -> Result<()
     Ok(())
 }
 
-// ---- Companion ----
-
+//companion
 #[tauri::command(async)]
 pub fn companion_notes(hub: State<'_, Hub>) -> Result<NotesView, String> {
     logged("companion_notes", hub.companion_notes())
@@ -232,8 +228,7 @@ pub fn companion_delete(app: AppHandle, hub: State<'_, Hub>, note_id: i64) -> Ch
     companion_changed(&app, hub.companion_delete(note_id))
 }
 
-// ---- the app ----
-
+//the app
 #[tauri::command(async)]
 pub fn open_data_folder(app: AppHandle, hub: State<'_, Hub>) {
     let folder = hub.data_dir().to_string_lossy().to_string();
@@ -245,4 +240,23 @@ pub fn open_data_folder(app: AppHandle, hub: State<'_, Hub>) {
 #[tauri::command(async)]
 pub fn quit_app(app: AppHandle) {
     app.exit(0);
+}
+
+//the tray pop-up
+/// The pop-up page has drawn itself and says how big it is. This is what shows the pop-up.
+#[tauri::command(async)]
+pub fn popup_ready(app: AppHandle, width: f64, height: f64) {
+    popup::ready(&app, width, height);
+}
+
+#[tauri::command(async)]
+pub fn popup_hide(app: AppHandle) {
+    popup::hide(&app);
+}
+
+/// The "Open Hub" button in the pop-up.
+#[tauri::command(async)]
+pub fn open_hub_window(app: AppHandle) {
+    popup::hide(&app);
+    crate::open_hub(&app);
 }

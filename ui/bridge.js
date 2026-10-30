@@ -42,7 +42,11 @@
         companion_snooze:       ["companion_snooze", ["noteId", "option"], "json", OOPS],
         companion_delete:       ["companion_delete", ["noteId"], "json", OOPS],
         open_data_folder:       ["open_data_folder", [], "plain", null],
-        quit_app:               ["quit_app", [], "plain", null]
+        quit_app:               ["quit_app", [], "plain", null],
+        // the tray pop-up (popup.html)
+        popup_ready:            ["popup_ready", ["width", "height"], "plain", null],
+        popup_hide:             ["popup_hide", [], "plain", null],
+        open_hub_window:        ["open_hub_window", [], "plain", null]
     };
 
     function signal() {
@@ -59,7 +63,8 @@
     var bridge = {
         dataChanged: signal(),
         newItemsFound: signal(),
-        fetchFinished: signal()
+        fetchFinished: signal(),
+        popupOpen: signal()
     };
 
     Object.keys(METHODS).forEach(function (name) {
@@ -81,6 +86,7 @@
     // What the page used to hear from Python as signals, now events from the Rust side.
     var listening = Promise.all([
         listen("data-changed", function () { bridge.dataChanged.emit(); }),
+        listen("popup-open", function () { bridge.popupOpen.emit(); }),
         listen("new-items", function (event) { bridge.newItemsFound.emit(event.payload.name, event.payload.count); }),
         listen("fetch-finished", function (event) {
             var p = event.payload;
