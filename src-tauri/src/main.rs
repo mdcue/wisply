@@ -230,6 +230,13 @@ fn main() {
                 });
                 app.manage(handle);
             }
+            
+            // A normal start (double-click, Start menu, installer's "run now") shows the Hub, so you
+            // can see the app is running. Only the quiet start Windows does at log-in
+            // (`--background`) stays in the tray.
+            if !std::env::args().any(|a| a == autostart::BACKGROUND_FLAG) {
+                open_hub(app.handle());
+            }
             Ok(())
         })
         .build(tauri::generate_context!())
