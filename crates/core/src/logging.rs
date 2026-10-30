@@ -13,9 +13,9 @@ use log::{LevelFilter, Log, Metadata, Record};
 
 use crate::Result;
 
-/// While the Python app is still around it keeps `wisply.log`, so the new app writes its own file.
-/// At the parity checkpoint (R7) this becomes `wisply.log`.
-pub const LOG_NAME: &str = "wisply-rs.log";
+/// The log's file name. (The Python app used the same name, so while both exist they must not run
+/// at the same time.)
+pub const LOG_NAME: &str = "wisply.log";
 pub const MAX_BYTES: u64 = 1_000_000;
 
 pub struct FileLogger {
