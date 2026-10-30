@@ -46,7 +46,12 @@
         // the tray pop-up (popup.html)
         popup_ready:            ["popup_ready", ["width", "height"], "plain", null],
         popup_hide:             ["popup_hide", [], "plain", null],
-        open_hub_window:        ["open_hub_window", [], "plain", null]
+        open_hub_window:        ["open_hub_window", [], "plain", null],
+        // the "Add idea / Add reminder" window (quick_add.html)
+        quick_add_info:         ["quick_add_info", [], "json", "{}"],
+        quick_add_kind:         ["quick_add_kind", [], "plain", "idea"],
+        quick_add_ready:        ["quick_add_ready", ["width", "height"], "plain", null],
+        quick_add_hide:         ["quick_add_hide", [], "plain", null]
     };
 
     function signal() {
@@ -64,7 +69,8 @@
         dataChanged: signal(),
         newItemsFound: signal(),
         fetchFinished: signal(),
-        popupOpen: signal()
+        popupOpen: signal(),
+        quickAddOpen: signal()
     };
 
     Object.keys(METHODS).forEach(function (name) {
@@ -87,6 +93,7 @@
     var listening = Promise.all([
         listen("data-changed", function () { bridge.dataChanged.emit(); }),
         listen("popup-open", function () { bridge.popupOpen.emit(); }),
+        listen("quick-add-open", function () { bridge.quickAddOpen.emit(); }),
         listen("new-items", function (event) { bridge.newItemsFound.emit(event.payload.name, event.payload.count); }),
         listen("fetch-finished", function (event) {
             var p = event.payload;

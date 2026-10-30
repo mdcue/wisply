@@ -5,11 +5,11 @@
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 use wisply_core::hub::{
-    ChangeResult, ChannelView, FeedItem, Hub, NotesView, SettingsWisp, WispView,
+    ChangeResult, ChannelView, FeedItem, Hub, NotesView, QuickAddInfo, SettingsWisp, WispView,
 };
 use wisply_core::wisps::companion::Feeling;
 
-use crate::{popup, tray};
+use crate::{popup, quick_add, tray};
 
 /// Turns the core's error into text for the page, and keeps the details in the log.
 fn logged<T>(what: &str, result: wisply_core::Result<T>) -> Result<T, String> {
@@ -119,7 +119,8 @@ pub fn fetch_now(app: AppHandle, wisp_id: String) {
     check_in_background(&app, &wisp_id);
 }
 
-//items
+// ---- items ----
+
 #[tauri::command(async)]
 pub fn get_channels(hub: State<'_, Hub>, wisp_id: String) -> Result<Vec<ChannelView>, String> {
     logged("get_channels", hub.channels(&wisp_id))
@@ -258,5 +259,30 @@ pub fn popup_hide(app: AppHandle) {
 #[tauri::command(async)]
 pub fn open_hub_window(app: AppHandle) {
     popup::hide(&app);
+    quick_add::hide(&app);
     crate::open_hub(&app);
+}
+
+//the "Add idea / Add reminder" window
+/// What the form says (titles, hints, the repeat choices) and whether pip is switched on.
+#[tauri::command(async)]
+pub fn quick_add_info(hub: State<'_, Hub>) -> Result<QuickAddInfo, String> {
+    logged("quick_add_info", hub.quick_add_info())
+}
+
+/// Which form was asked for: "idea" or "reminder".
+#[tauri::command(async)]
+pub fn quick_add_kind(app: AppHandle) -> String {
+    quick_add::kind(&app)
+}
+
+/// The form has drawn itself and says how big it is. This is what shows the window.
+#[tauri::command(async)]
+pub fn quick_add_ready(app: AppHandle, width: f64, height: f64) {
+    quick_add::ready(&app, width, height);
+}
+
+#[tauri::command(async)]
+pub fn quick_add_hide(app: AppHandle) {
+    quick_add::hide(&app);
 }

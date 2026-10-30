@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"What the Hub and the tray pop-up may do besides calling Wisply's own commands: listen for updates.","local":true,"windows":["hub","popup"],"permissions":["core:event:default"]}}
+{"default":{"identifier":"default","description":"What the Hub and the tray pop-up and the quick-add window may do besides calling Wisply's own commands: listen for updates.","local":true,"windows":["hub","popup","quick_add"],"permissions":["core:event:default"]}}

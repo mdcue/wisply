@@ -3,6 +3,7 @@
 
 mod bridge;
 mod popup;
+mod quick_add;
 mod tray;
 
 use std::path::PathBuf;
@@ -33,6 +34,16 @@ pub(crate) fn open_hub(app: &AppHandle) {
         .build();
     if let Err(error) = built {
         eprintln!("could not open the Hub: {error}");
+    }
+}
+
+/// Opens the "Add idea" or "Add reminder" window. Before setup the Hub is where you introduce
+/// yourself, and without a data folder there is nothing to add to.
+fn open_quick_add(app: &AppHandle, kind: &str) {
+    match app.try_state::<Hub>() {
+        None => {}
+        Some(hub) if !hub.account_exists() => open_hub(app),
+        Some(_) => quick_add::open(app, kind),
     }
 }
 
@@ -103,6 +114,10 @@ fn main() {
             bridge::popup_ready,
             bridge::popup_hide,
             bridge::open_hub_window,
+            bridge::quick_add_info,
+            bridge::quick_add_kind,
+            bridge::quick_add_ready,
+            bridge::quick_add_hide,
         ])
         .setup(|app| {
             let (data_dir, tooltip) = startup();
@@ -116,14 +131,30 @@ fn main() {
                     log::warn!("could not make the tray pop-up: {error}");
                 }
             }
+            // The "Add idea / Add reminder" window: also made now, hidden.
+            app.manage(quick_add::QuickAddState::default());
+            if data_dir.is_some() {
+                if let Err(error) = quick_add::create(app.handle()) {
+                    log::warn!("could not make the quick-add window: {error}");
+                }
+            }
 
             let open = MenuItem::with_id(app, "open", "Open Hub", true, None::<&str>)?;
+            let add_idea = MenuItem::with_id(app, "add_idea", "Add idea\u{2026}", true, None::<&str>)?;
+            let add_reminder = MenuItem::with_id(app, "add_reminder", "Add reminder\u{2026}", true, None::<&str>)?;
             let start_with_windows =
                 CheckMenuItem::with_id(app, "autostart", "Start with Windows", true, autostart::is_enabled(), None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(
                 app,
-                &[&open, &PredefinedMenuItem::separator(app)?, &start_with_windows, &quit],
+                &[
+                    &open,
+                    &add_idea,
+                    &add_reminder,
+                    &PredefinedMenuItem::separator(app)?,
+                    &start_with_windows,
+                    &quit,
+                ],
             )?;
 
             let icons = tray::icons_of(app);
@@ -145,6 +176,8 @@ fn main() {
                     let start_with_windows = start_with_windows.clone();
                     move |app, event| match event.id().as_ref() {
                         "open" => open_hub(app),
+                        "add_idea" => open_quick_add(app, "idea"),
+                        "add_reminder" => open_quick_add(app, "reminder"),
                         "autostart" => {
                             // Windows flips the tick by itself; afterwards show what is really set.
                             if let Err(error) = autostart::toggle() {
