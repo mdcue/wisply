@@ -1,0 +1,62 @@
+# Third-party notices
+
+Wisply is built with the open-source software below, each under its own licence. Their copyright
+notices and licence texts are reproduced here, as those licences require.
+
+## Artwork and fonts
+
+### Face icons: Tabler Icons
+
+The face pictures are from [Tabler Icons](https://tabler.io/icons), recoloured and placed in
+shapes by Wisply.
+
+```
+MIT License
+
+Copyright (c) 2020-2024 Paweł Kuna
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### Font: Poppins
+
+Poppins is licensed under the SIL Open Font License 1.1. The licence text ships with the project in
+`ui/fonts/OFL.txt`.
+
+## Overview of licences used by the Rust libraries
+
+{{#each overview}}
+- {{{name}}}: used by {{count}} libraries
+{{/each}}
+
+## Licence texts of the Rust libraries
+
+{{#each licenses}}
+### {{{name}}}
+
+Used by:
+{{#each used_by}}
+- {{crate.name}} {{crate.version}}
+{{/each}}
+
+```
+{{{text}}}
+```
+
+{{/each}}

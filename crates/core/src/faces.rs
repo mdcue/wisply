@@ -2,6 +2,10 @@
 //! is drawn from. They are built into the program, so icons can be made without any file lookups.
 //! The same pictures are what the Hub shows, from `ui/assets/expressions`.
 
+/// Names the current set of face pictures. Change it whenever the pictures change, so icons drawn
+/// from the old pictures (kept in the data folder) are noticed and redrawn once.
+pub const ART_VERSION: &str = "tabler-1";
+
 macro_rules! faces {
     ($($name:literal),* $(,)?) => {
         /// The names of the faces, in alphabetical order.
