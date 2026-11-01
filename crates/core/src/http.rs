@@ -14,7 +14,7 @@ use url::Url;
 
 /// Sent with every request so the sites we call can tell who is asking. Replace the contact
 /// before release; this is the only place it lives.
-pub const USER_AGENT: &str = "wisply/1.0 (+https://github.com/mdcue/wisply)";
+pub const USER_AGENT: &str = "wisply/0.1.0 (+https://github.com/mdcue/wisply)";
 pub const MAX_BODY_BYTES: u64 = 2_000_000;
 pub const TIMEOUT: Duration = Duration::from_secs(15);
 
