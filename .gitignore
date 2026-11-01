@@ -1,12 +1,6 @@
-venv/
-__pycache__/
-*.pyc
 .env
 data.db
 data.db.bak
 account.json
 *.log
-build/
-dist/
-shape_preview.png
 target/
