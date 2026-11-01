@@ -90,5 +90,4 @@ Wisply keeps everything in a local database on your computer. It contacts only t
 - Built with Tauri, Rust, SQLite and many open-source libraries; a full list of their licences will be added before the first release
 
 ## Licence
-
-To be decided before the first public release.
+Copyright (c) 2026 Muhammad Musaddiq. All rights reserved. See the `LICENSE` file.
