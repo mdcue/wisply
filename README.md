@@ -84,7 +84,7 @@ Wisply keeps everything in a local database on your computer. It contacts only t
 
 ## Credits
 
-- Face icons: [Free icons designed by Illosalz | Flaticon](https://www.flaticon.com/authors/illosalz)
+- Face icons: [Smileys icons created by Illosalz - Flaticon](https://www.flaticon.com/free-icons/smileys)
 - Font: Poppins, licensed under the SIL Open Font License 1.1 (see `ui/fonts/OFL.txt`)
 - Data: [CheapShark](https://www.cheapshark.com) for game deals and the [GitHub](https://github.com) search API for repositories
 - Built with Tauri, Rust, SQLite and many open-source libraries; a full list of their licences will be added before the first release
