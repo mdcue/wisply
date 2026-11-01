@@ -82,6 +82,13 @@ The rewrite from Python/PyQt6 cut the installer from hundreds of megabytes to a 
 
 Wisply keeps everything in a local database on your computer. It contacts only the services its wisps use (currently CheapShark and GitHub) and sends no personal data.
 
+## Credits
+
+- Face icons: [Free icons designed by Illosalz | Flaticon](https://www.flaticon.com/authors/illosalz)
+- Font: Poppins, licensed under the SIL Open Font License 1.1 (see `ui/fonts/OFL.txt`)
+- Data: [CheapShark](https://www.cheapshark.com) for game deals and the [GitHub](https://github.com) search API for repositories
+- Built with Tauri, Rust, SQLite and many open-source libraries; a full list of their licences will be added before the first release
+
 ## Licence
 
 To be decided before the first public release.
