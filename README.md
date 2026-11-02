@@ -4,7 +4,7 @@ Small, single-purpose helpers ("wisps") that live in your Windows system tray an
 
 > Status: early alpha (v0.1). Windows only.
 
-<!-- Add a screenshot of the tray pop-up and the Hub here, for example: ![Wisply](docs/screenshot.png) -->
+![Wisply's Hub and tray pop-up](docs/screenshot.png)
 
 ## Why Wisply?
 
