@@ -1,6 +1,8 @@
-//! Icon tests. The files in `tests/fixtures/icons` were made by the Python app's own icon code
-//! (Pillow); the Rust icons must look the same (edges may differ by a hair, so pictures are
-//! compared with a small tolerance, not byte for byte).
+//! Icon tests. The files in `tests/fixtures/icons` are reference pictures made by this icon code
+//! from the current face art (`ui/assets/expressions`). The icons must keep looking the same, so a
+//! change to the drawing code or to the art shows up here (edges may differ by a hair, so pictures
+//! are compared with a small tolerance, not byte for byte). To refresh them after changing the art
+//! on purpose, run the `make_icon_fixtures` example (see the README of the test folder, or the Book).
 
 use image::RgbaImage;
 use wisply_core::icons::{self, IconError, Shape};
@@ -34,7 +36,7 @@ fn difference(a: &RgbaImage, b: &RgbaImage) -> (f64, f64) {
     (total / (pixels * 4.0), clear as f64 / pixels)
 }
 
-fn matches_python(expression: &str, color: &str, shape: Shape, file: &str) {
+fn matches_reference(expression: &str, color: &str, shape: Shape, file: &str) {
     let made = icons::generate(expression, color, shape).unwrap().plain;
     let (average, clear) = difference(&made, &reference(file));
     println!("{file}: average {average:.4}, clear {clear:.5}");
@@ -43,34 +45,34 @@ fn matches_python(expression: &str, color: &str, shape: Shape, file: &str) {
 }
 
 #[test]
-fn circle_icons_match_python() {
-    matches_python("happy", "#4CAF50", Shape::Circle, "happy_4CAF50_circle");
-    matches_python("smiling", "#ff7a59", Shape::Circle, "smiling_ff7a59_circle");
+fn circle_icons_match_the_reference() {
+    matches_reference("happy", "#4CAF50", Shape::Circle, "happy_4CAF50_circle");
+    matches_reference("smiling", "#ff7a59", Shape::Circle, "smiling_ff7a59_circle");
 }
 
 #[test]
-fn dark_colour_gets_white_lines_like_python() {
-    matches_python("blank", "#222222", Shape::Circle, "blank_222222_circle");
+fn dark_colour_gets_white_lines() {
+    matches_reference("blank", "#222222", Shape::Circle, "blank_222222_circle");
     let icon = icons::generate("blank", "#222222", Shape::Circle).unwrap().plain;
     assert!(icon.pixels().any(|p| p.0 == [255, 255, 255, 255]));
 }
 
 #[test]
-fn rounded_square_icons_match_python() {
-    matches_python("surprised", "#2196f3", Shape::RoundedSquare, "surprised_2196f3_rounded_square");
-    matches_python("kiss", "#101010", Shape::RoundedSquare, "kiss_101010_rounded_square");
+fn rounded_square_icons_match_the_reference() {
+    matches_reference("surprised", "#2196f3", Shape::RoundedSquare, "surprised_2196f3_rounded_square");
+    matches_reference("kiss", "#101010", Shape::RoundedSquare, "kiss_101010_rounded_square");
 }
 
 #[test]
-fn hexagon_icons_match_python() {
-    matches_python("happy", "#4CAF50", Shape::Hexagon, "happy_4CAF50_hexagon");
-    matches_python("nervous", "#8957e5", Shape::Hexagon, "nervous_8957e5_hexagon");
+fn hexagon_icons_match_the_reference() {
+    matches_reference("happy", "#4CAF50", Shape::Hexagon, "happy_4CAF50_hexagon");
+    matches_reference("nervous", "#8957e5", Shape::Hexagon, "nervous_8957e5_hexagon");
 }
 
 #[test]
-fn diamond_icons_match_python() {
-    matches_python("laughing", "#ffcc00", Shape::Diamond, "laughing_ffcc00_diamond");
-    matches_python("tongue", "#ff7a59", Shape::Diamond, "tongue_ff7a59_diamond");
+fn diamond_icons_match_the_reference() {
+    matches_reference("laughing", "#ffcc00", Shape::Diamond, "laughing_ffcc00_diamond");
+    matches_reference("tongue", "#ff7a59", Shape::Diamond, "tongue_ff7a59_diamond");
 }
 
 #[test]

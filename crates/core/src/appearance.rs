@@ -10,12 +10,12 @@ use crate::icons::{self, Shape};
 use crate::store::{self, WispChanges};
 use crate::{Error, Result};
 
-/// The file that remembers what an icon was drawn from, so a changed colour or face (or shape) is
-/// noticed and the icon redrawn.
+/// The file that remembers what an icon was drawn from, so a changed colour, face or shape (or a new
+/// set of face pictures, see `faces::ART_VERSION`) is noticed and the icon redrawn.
 const LOOK_FILE: &str = "look.txt";
 
 fn look_text(expression: &str, color: &str, shape: Shape) -> String {
-    format!("{expression}|{}|{}", color.trim().to_lowercase(), shape.name())
+    format!("{expression}|{}|{}|{}", color.trim().to_lowercase(), shape.name(), crate::faces::ART_VERSION)
 }
 
 /// Draws and saves one wisp's two icons, and remembers what they were drawn from.

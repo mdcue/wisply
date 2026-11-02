@@ -4,3 +4,4 @@ data.db.bak
 account.json
 *.log
 target/
+src-tauri/gen/

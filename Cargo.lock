@@ -4937,7 +4937,7 @@ dependencies = [
 
 [[package]]
 name = "wisply"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "log",
  "serde_json",

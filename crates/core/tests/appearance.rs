@@ -39,6 +39,19 @@ fn every_wisp_gets_its_icons_once_and_is_then_left_alone() {
 }
 
 #[test]
+fn icons_drawn_from_older_face_pictures_are_redrawn_once() {
+    let (dir, conn) = setup();
+    appearance::ensure_icons(&conn, dir.path()).unwrap();
+
+    // An icon made by an older version has a `look.txt` without the picture-set name.
+    std::fs::write(icon_file(dir.path(), "github", "look.txt"), "smiling|#8957e5|hexagon").unwrap();
+    assert_eq!(appearance::ensure_icons(&conn, dir.path()).unwrap(), 1, "only that wisp is redrawn");
+    assert_eq!(appearance::ensure_icons(&conn, dir.path()).unwrap(), 0, "and only once");
+    let look = std::fs::read_to_string(icon_file(dir.path(), "github", "look.txt")).unwrap();
+    assert!(look.ends_with(wisply_core::faces::ART_VERSION), "the new look names the picture set: {look}");
+}
+
+#[test]
 fn a_changed_face_or_colour_or_a_missing_file_gets_only_that_wisp_redrawn() {
     let (dir, conn) = setup();
     appearance::ensure_icons(&conn, dir.path()).unwrap();

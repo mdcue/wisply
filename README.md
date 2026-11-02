@@ -4,7 +4,7 @@ Small, single-purpose helpers ("wisps") that live in your Windows system tray an
 
 > Status: early alpha (v0.1). Windows only.
 
-<!-- Add a screenshot of the tray pop-up and the Hub here, for example: ![Wisply](docs/screenshot.png) -->
+![Wisply's Hub and tray pop-up](docs/screenshot.png)
 
 ## Why Wisply?
 
@@ -82,6 +82,12 @@ The rewrite from Python/PyQt6 cut the installer from hundreds of megabytes to a 
 
 Wisply keeps everything in a local database on your computer. It contacts only the services its wisps use (currently CheapShark and GitHub) and sends no personal data.
 
-## Licence
+## Credits
 
-To be decided before the first public release.
+- Face icons: [Tabler Icons](https://tabler.io/icons), MIT licence, recoloured
+- Font: Poppins, licensed under the SIL Open Font License 1.1 (see `ui/fonts/OFL.txt`)
+- Data: [CheapShark](https://www.cheapshark.com) for game deals and the [GitHub](https://github.com) search API for repositories
+- Built with Tauri, Rust, SQLite and many open-source libraries; their licences are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
+
+## Licence
+Copyright (c) 2026 Muhammad Musaddiq. All rights reserved. See the `LICENSE` file.
