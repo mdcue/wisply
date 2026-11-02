@@ -99,6 +99,10 @@ body {
     border-radius: 8px;
 }
 
+.app-header .app-brand h2 {
+    margin: 0;
+}
+
 .app-header h2 {
     margin: 0 0 12px 0;
     font-size: 20px;
@@ -532,10 +536,6 @@ body {
     text-decoration: none;
 }
 
-:root[data-theme="dark"] .app-brand-icon {
-    filter: invert(1);
-}
-
 .settings-footer {
     margin-top: 24px;
     padding-top: 14px;
@@ -553,7 +553,7 @@ body {
 .quit-confirm {
     align-items: center;
     flex-wrap: wrap;
-    gap: 10ps;
+    gap: 10px;
 }
 
 .danger-btn {
