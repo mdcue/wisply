@@ -47,6 +47,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         .skip_taskbar(true)
         .visible(false)
         .focused(false)
+        .on_navigation(crate::allow_navigation)
         .build()?;
     let handle = app.clone();
     window.on_window_event(move |event| match event {

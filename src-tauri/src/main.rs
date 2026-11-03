@@ -16,6 +16,42 @@ use wisply_core::{autostart, runtime};
 
 const HUB_LABEL: &str = "hub";
 
+/// The only addresses a Wisply window may show are Wisply's own pages (the files in `ui`). In the
+/// installed app on Windows those live at `http://tauri.localhost/...` (other systems use the
+/// `tauri` scheme). Anything else is refused, so a link or a script can never load a web page inside
+/// the app. Real links open in your browser through `open_item`, which has its own checks.
+pub(crate) fn allow_navigation(url: &tauri::Url) -> bool {
+    let own = match url.scheme() {
+        "tauri" => true,
+        "http" | "https" => url.host_str() == Some("tauri.localhost") || is_dev_server(url),
+        _ => false,
+    };
+    if !own {
+        log::warn!("blocked a navigation to {url}");
+    }
+    own
+}
+
+/// `cargo tauri dev` serves the pages from a small test server on this computer (a local address),
+/// so while developing, pages from the local machine are accepted too. This function only exists in
+/// development builds: the installed app does not contain it, and a public site such as example.com
+/// is refused either way.
+#[cfg(debug_assertions)]
+fn is_dev_server(url: &tauri::Url) -> bool {
+    url.scheme() == "http"
+        && url.host_str().is_some_and(|host| {
+            host == "localhost"
+                || host
+                    .parse::<std::net::Ipv4Addr>()
+                    .is_ok_and(|ip| ip.is_loopback() || ip.is_private())
+        })
+}
+
+#[cfg(not(debug_assertions))]
+fn is_dev_server(_url: &tauri::Url) -> bool {
+    false
+}
+
 /// Shows the Hub, creating the window the first time it is needed. (Without a data folder there is
 /// nothing to show, so nothing opens.)
 pub(crate) fn open_hub(app: &AppHandle) {
@@ -31,6 +67,7 @@ pub(crate) fn open_hub(app: &AppHandle) {
         .title("wisply Hub")
         .inner_size(420.0, 600.0)
         .center()
+        .on_navigation(allow_navigation)
         .build();
     if let Err(error) = built {
         eprintln!("could not open the Hub: {error}");
