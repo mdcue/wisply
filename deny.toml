@@ -1,0 +1,45 @@
+# Rules for `cargo deny check`: known security problems, licences, unwanted sources.
+
+[graph]
+# Only look at what is built for Windows. (Cargo.lock also lists Linux-only crates that never
+# end up in Wisply.exe, and they would only add noise.)
+targets = ["x86_64-pc-windows-msvc"]
+
+[advisories]
+version = 2
+# A crate its author has withdrawn from crates.io: warn, do not fail.
+yanked = "warn"
+# Advisories we have looked at and decided to accept go here, each with a reason.
+ignore = []
+
+[licenses]
+version = 2
+# Only these licences are allowed in the app's dependencies. Anything else fails the check, so
+# a new crate with an unusual licence is noticed before it ships.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "ISC",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Zlib",
+    "CC0-1.0",
+    "0BSD",
+    "CDLA-Permissive-2.0",
+]
+
+# Wisply's own crates are not published (publish = false in their Cargo.toml).
+[licenses.private]
+ignore = true
+
+[bans]
+# Tauri pulls in two versions of several small crates. That is harmless and not ours to fix, so
+# it is not reported.
+multiple-versions = "allow"
+wildcards = "allow"
+
+[sources]
+# Crates may only come from crates.io: no unknown registries and no git dependencies.
+unknown-registry = "deny"
+unknown-git = "deny"
