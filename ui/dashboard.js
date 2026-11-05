@@ -13,7 +13,7 @@ new QWebChannel(qt.webChannelTransport, function (channel) {
     bridge = channel.objects.bridge;
     bridge.dataChanged.connect(function () {
         const shell = document.getElementById("app-shell");
-        if (shell && shell.style.display !== "none") {
+        if (shell && getComputedStyle(shell).display !== "none") {
             if (currentTab === "dashboard") {
                 renderActivityFeed();
             } else if (currentTab === "wisps") {

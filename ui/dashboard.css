@@ -734,3 +734,15 @@ body {
     font-size: 12px;
     color: var(--text-muted);
 }
+/* Hidden until the page's script shows them. This used to be written in the HTML as
+   style="display:none", which the app's security policy (CSP) no longer allows. The script's
+   own style.display = "block" / "flex" / "inline-block" still wins over these rules. */
+#step-wisps,
+#app-shell,
+#notification-banner,
+#view-wisps,
+#view-discover,
+#view-settings,
+#quit-confirm {
+    display: none;
+}

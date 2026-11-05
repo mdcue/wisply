@@ -1,0 +1,8 @@
+version: 2
+updates:
+  # Rust crates (the whole workspace is covered from the repo root).
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
