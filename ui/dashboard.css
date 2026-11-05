@@ -735,8 +735,8 @@ body {
     color: var(--text-muted);
 }
 /* Hidden until the page's script shows them. This used to be written in the HTML as
-   style="display:none", which the app's security policy (CSP) no longer allows. The script's
-   own style.display = "block" / "flex" / "inline-block" still wins over these rules. */
+style="display:none", which the app's security policy (CSP) no longer allows. The script's
+own style.display = "block" / "flex" / "inline-block" still wins over these rules. */
 #step-wisps,
 #app-shell,
 #notification-banner,
@@ -745,4 +745,14 @@ body {
 #view-settings,
 #quit-confirm {
     display: none;
+}
+
+/* A very long word with no spaces (a hostile or broken title) must wrap inside its row instead of
+pushing the row wider than the window. A flex child needs min-width: 0 before it may shrink,
+and overflow-wrap: anywhere lets the word break at any letter. */
+.channel-item-text,
+.feed-row-content,
+.feed-row-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
