@@ -33,7 +33,7 @@ fn hostile_items() -> Vec<(String, Option<String>)> {
             Some("http://example.com/plain-http".to_string()),
         ),
         (
-            "Other https site: click me (opens example.com in your browser: a known gap)".to_string(),
+            "Other https site: click me (nothing may happen: the site is not on the list)".to_string(),
             Some("https://example.com/not-a-listed-host".to_string()),
         ),
         (
