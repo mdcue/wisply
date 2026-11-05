@@ -10,6 +10,11 @@ pub const MAX_ITEM_TEXT: usize = 300;
 /// Longest link that is kept. Real links to the listed sites are far shorter; a huge one is not
 /// something to store or hand to the browser.
 pub const MAX_LINK_LEN: usize = 2000;
+/// The sites an item's link may point at, and so the only sites Wisply will open in the browser.
+/// Each wisp's link host must be listed here (GitHub: `github.com`; Game Deals: the CheapShark
+/// redirect on `www.cheapshark.com`). A wisp for a new site needs its host added here too; if it
+/// is forgotten, that wisp's links simply do not open.
+pub const LINK_HOSTS: &[&str] = &["github.com", "www.cheapshark.com"];
 
 /// Characters that change which way text runs (they can make a harmless-looking line read
 /// differently from what it really says).

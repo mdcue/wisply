@@ -247,10 +247,31 @@ fn opening_an_item_reads_it_and_only_gives_out_safe_links_from_the_database() {
     store::add_item(&c, &NewItem { url: Some("http://plain.test".into()), ..item("gh_day", "b", "B") }).unwrap();
     store::add_item(&c, &NewItem { url: Some("javascript:alert(1)".into()), ..item("gh_day", "c", "C") }).unwrap();
     store::add_item(&c, &item("gh_day", "d", "no link")).unwrap();
+    store::add_item(
+        &c,
+        &NewItem { url: Some("https://www.cheapshark.com/redirect?dealID=abc".into()), ..item("gh_day", "e", "E") },
+    )
+    .unwrap();
+    store::add_item(&c, &NewItem { url: Some("https://example.com/not-a-listed-host".into()), ..item("gh_day", "f", "F") })
+        .unwrap();
+    store::add_item(&c, &NewItem { url: Some("https://github.com.evil.example/".into()), ..item("gh_day", "g", "G") })
+        .unwrap();
+    store::add_item(
+        &c,
+        &NewItem { url: Some("file:///C:/Windows/System32/calc.exe".into()), ..item("gh_day", "h", "H") },
+    )
+    .unwrap();
     assert_eq!(hub.open_item(1).unwrap().as_deref(), Some("https://github.com/a/b"));
     assert_eq!(hub.open_item(2).unwrap(), None);
     assert_eq!(hub.open_item(3).unwrap(), None);
     assert_eq!(hub.open_item(4).unwrap(), None);
+    assert_eq!(
+        hub.open_item(5).unwrap().as_deref(),
+        Some("https://www.cheapshark.com/redirect?dealID=abc")
+    );
+    assert_eq!(hub.open_item(6).unwrap(), None, "a site that is not on the list never opens");
+    assert_eq!(hub.open_item(7).unwrap(), None, "a look-alike host never opens");
+    assert_eq!(hub.open_item(8).unwrap(), None);
     assert_eq!(hub.open_item(999).unwrap(), None);
     assert_eq!(store::unread_count(&c, "gh_day").unwrap(), 0, "opening marks read, even with no link");
 }

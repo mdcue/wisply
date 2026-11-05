@@ -331,11 +331,13 @@ impl Hub {
     }
 
     /// Marks an item read and gives back the link to open, if it has a safe one. The link comes from
-    /// the database, never from the page, and only `https` links are given out.
+    /// the database, never from the page, and it is checked again here: only an `https` link to a
+    /// site on `safe::LINK_HOSTS` (no user name in it, not absurdly long) is given out.
     pub fn open_item(&self, item_id: i64) -> Result<Option<String>> {
         let conn = self.conn()?;
         store::mark_read(&conn, item_id)?;
-        Ok(store::item_url(&conn, item_id)?.filter(|url| url.starts_with("https://")))
+        Ok(store::item_url(&conn, item_id)?
+            .and_then(|url| crate::safe::link_on_hosts(&url, crate::safe::LINK_HOSTS)))
     }
 
     // checking
