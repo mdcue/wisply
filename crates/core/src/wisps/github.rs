@@ -261,6 +261,17 @@ impl GithubFetcher {
         &self.skipped
     }
 
+    /// Writes what was left out to the log: one summary line, then one line per repository.
+    fn log_skipped(&self) {
+        if self.skipped.is_empty() {
+            return;
+        }
+        log::info!("GitHub: left out {} junk repositories this check", self.skipped.len());
+        for item in &self.skipped {
+            log::info!("GitHub: left out {} ({})", item.name, item.why.label());
+        }
+    }
+
     /// Drops the junk from one search's repos and remembers each one dropped (once per check,
     /// even if several searches found it).
     fn screen(&mut self, repos: Vec<Repo>) -> Vec<Repo> {
@@ -389,6 +400,7 @@ impl Fetcher for GithubFetcher {
         found.sort_by_key(|repo| std::cmp::Reverse(repo.stars));
         found.truncate(TOP_N);
         save(conn, "gh_langs", &found, None)?;
+        self.log_skipped();
         Ok(())
     }
 }
