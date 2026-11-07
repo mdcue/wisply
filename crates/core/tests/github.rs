@@ -10,7 +10,7 @@ use common::{ok, start, status, Route};
 use rusqlite::Connection;
 use wisply_core::http::Client;
 use wisply_core::scheduler::Fetcher;
-use wisply_core::wisps::github::{self, compact, GithubFetcher};
+use wisply_core::wisps::github::{self, compact, GithubFetcher, Junk};
 use wisply_core::{schema, store};
 
 fn now() -> DateTime<Utc> {
@@ -32,6 +32,11 @@ fn repo(id: i64, name: &str, stars: i64, created: &str, description: Option<&str
 
 fn list(repos: &[String]) -> String {
     format!(r#"{{"total_count": {}, "items": [{}]}}"#, repos.len(), repos.join(","))
+}
+
+/// A repo with more fields added to its JSON, such as `"fork": true` or `"forks_count": 0`.
+fn with_fields(repo: String, extra: &str) -> String {
+    format!("{}, {extra}}}", repo.strip_suffix('}').expect("a repo is a JSON object"))
 }
 
 /// Routes for the five searches. The needles pick the search by what it asks for.
@@ -143,10 +148,12 @@ fn the_right_searches_are_asked_for() {
     let asked: Vec<String> = server.requests().into_iter().map(|r| r.target).collect();
     assert_eq!(asked.len(), 5);
     assert!(asked[0].contains("q=created%3A%3E%3D2026-09-26&sort=stars&order=desc&per_page=100"), "{}", asked[0]);
-    assert!(asked[1].contains("2026-10-19&sort=stars&order=desc&per_page=5"), "{}", asked[1]);
-    assert!(asked[2].contains("2026-10-25&sort=stars&order=desc&per_page=5"), "{}", asked[2]);
+    // The week, day and language searches ask for ten, so that after junk is left out there are
+    // still five good ones to keep.
+    assert!(asked[1].contains("2026-10-19&sort=stars&order=desc&per_page=10"), "{}", asked[1]);
+    assert!(asked[2].contains("2026-10-25&sort=stars&order=desc&per_page=10"), "{}", asked[2]);
     assert!(asked[3].contains("2026-09-26+stars%3A50..500+archived%3Afalse&sort=stars&order=desc&per_page=30"), "{}", asked[3]);
-    assert!(asked[4].contains("2026-10-19+language%3A%22python%22&sort=stars&order=desc&per_page=5"), "{}", asked[4]);
+    assert!(asked[4].contains("2026-10-19+language%3A%22python%22&sort=stars&order=desc&per_page=10"), "{}", asked[4]);
 }
 
 #[test]
@@ -324,4 +331,133 @@ fn a_gap_between_searches_really_waits() {
     slow.fetch(&conn).unwrap();
     // Four pauses: before the week, day, gems and the one language search.
     assert!(started.elapsed() >= Duration::from_millis(400), "{:?}", started.elapsed());
+}
+
+/// What was left out during the latest check, as (name, reason) pairs.
+fn skipped(fetcher: &GithubFetcher) -> Vec<(String, Junk)> {
+    fetcher.skipped().iter().map(|s| (s.name.clone(), s.why)).collect()
+}
+
+#[test]
+fn forks_archived_and_disabled_repos_are_left_out_and_remembered() {
+    let month = list(&[
+        repo(1, "o/good", 100, "2026-10-20T00:00:00Z", Some("Fine"), None),
+        with_fields(repo(2, "o/forked", 90, "2026-10-20T00:00:00Z", None, None), r#""fork": true"#),
+        with_fields(repo(3, "o/old", 80, "2026-10-20T00:00:00Z", None, None), r#""archived": true"#),
+        with_fields(repo(4, "o/off", 70, "2026-10-20T00:00:00Z", None, None), r#""disabled": true"#),
+        with_fields(
+            repo(5, "o/kept", 60, "2026-10-20T00:00:00Z", None, None),
+            r#""fork": false, "archived": false, "disabled": false"#,
+        ),
+    ]);
+    let (conn, mut fetcher, _server) = setup(routes(&month, EMPTY, EMPTY, EMPTY, EMPTY));
+    fetcher.fetch(&conn).unwrap();
+    assert_eq!(texts(&conn, "gh_month"), ["o/good  (★ 100) - Fine", "o/kept  (★ 60)"]);
+    assert_eq!(
+        skipped(&fetcher),
+        [
+            ("o/forked".to_string(), Junk::Fork),
+            ("o/old".to_string(), Junk::Archived),
+            ("o/off".to_string(), Junk::Disabled),
+        ]
+    );
+    assert_eq!(Junk::Fork.label(), "a fork");
+}
+
+#[test]
+fn bait_wording_is_left_out_but_honest_repos_with_similar_words_stay() {
+    // The topics go in as a JSON list, for example `["crack", "keygen"]`.
+    let with_topics = |id: i64, name: &str, description: Option<&str>, topics: &str| {
+        with_fields(repo(id, name, 50, "2026-10-20T00:00:00Z", description, None), &format!(r#""topics": {topics}"#))
+    };
+    let month = list(&[
+        // Bait: each of these must go.
+        with_topics(1, "o/Adobe-Crack-Free-Download", None, "[]"),
+        with_topics(2, "o/tool2", Some("Free Robux generator 2026!"), "[]"),
+        with_topics(3, "o/tool3", Some("Works on Roblox"), r#"["crack", "keygen", "free-download"]"#),
+        with_topics(4, "o/tool4", Some("The best aimbot and wallhack"), "[]"),
+        with_topics(5, "o/tool5", None, r#"["game", "cheat"]"#),
+        // Honest: similar words, but not bait.
+        with_topics(6, "o/ssh-keygen-helper", Some("Wraps ssh-keygen"), "[]"),
+        with_topics(7, "o/crack-detection", Some("Finds cracks in concrete"), r#"["computer-vision"]"#),
+        with_topics(8, "o/cheat-sheets", Some("Free Python cheat sheet"), "[]"),
+        with_topics(9, "o/opendrop", Some("An open Apple AirDrop"), r#"["airdrop"]"#),
+    ]);
+    let (conn, mut fetcher, _server) = setup(routes(&month, EMPTY, EMPTY, EMPTY, EMPTY));
+    fetcher.fetch(&conn).unwrap();
+    assert_eq!(
+        texts(&conn, "gh_month"),
+        [
+            "o/ssh-keygen-helper  (★ 50) - Wraps ssh-keygen",
+            "o/crack-detection  (★ 50) - Finds cracks in concrete",
+            "o/cheat-sheets  (★ 50) - Free Python cheat sheet",
+            "o/opendrop  (★ 50) - An open Apple AirDrop",
+        ]
+    );
+    let left_out = skipped(&fetcher);
+    assert_eq!(left_out.len(), 5);
+    assert!(left_out.iter().all(|(_, why)| *why == Junk::BaitWords), "{left_out:?}");
+}
+
+#[test]
+fn a_repo_with_many_stars_and_nobody_forking_it_is_left_out() {
+    // Made a day before the clock, so 2,000 stars is 2,000 a day.
+    let fresh = |id: i64, name: &str, extra: &str| {
+        with_fields(repo(id, name, 2000, "2026-10-25T12:00:00Z", None, None), extra)
+    };
+    let month = list(&[
+        fresh(1, "o/farmed", r#""forks_count": 0"#),
+        fresh(2, "o/real", r#""forks_count": 40"#),
+        // GitHub did not say how many forks: unknown is not the same as none, so it stays.
+        fresh(3, "o/unknown", r#""open_issues_count": 3"#),
+        // Nobody forked it, but it is not gaining stars fast, so it stays too.
+        with_fields(repo(4, "o/quiet", 100, "2026-10-25T12:00:00Z", None, None), r#""forks_count": 0"#),
+    ]);
+    let (conn, mut fetcher, _server) = setup(routes(&month, EMPTY, EMPTY, EMPTY, EMPTY));
+    fetcher.fetch(&conn).unwrap();
+    assert_eq!(texts(&conn, "gh_month"), ["o/real  (★ 2k)", "o/unknown  (★ 2k)", "o/quiet  (★ 100)"]);
+    assert_eq!(skipped(&fetcher), [("o/farmed".to_string(), Junk::StarFarm)]);
+}
+
+#[test]
+fn the_best_five_are_still_found_after_junk_is_left_out() {
+    let week: Vec<String> = (1..=8)
+        .map(|n| {
+            let one = repo(n, &format!("o/w{n}"), 100 - n, "2026-10-20T00:00:00Z", None, None);
+            // The three best are forks.
+            if n <= 3 { with_fields(one, r#""fork": true"#) } else { one }
+        })
+        .collect();
+    let (conn, mut fetcher, _server) = setup(routes(EMPTY, &list(&week), EMPTY, EMPTY, EMPTY));
+    fetcher.fetch(&conn).unwrap();
+    assert_eq!(
+        texts(&conn, "gh_week"),
+        ["o/w4  (★ 96)", "o/w5  (★ 95)", "o/w6  (★ 94)", "o/w7  (★ 93)", "o/w8  (★ 92)"]
+    );
+    assert_eq!(skipped(&fetcher).len(), 3);
+}
+
+#[test]
+fn rising_never_sees_a_repo_that_was_left_out() {
+    let month = list(&[
+        with_fields(repo(1, "o/farmed", 5000, "2026-10-25T12:00:00Z", None, None), r#""forks_count": 0"#),
+        with_fields(repo(2, "o/real", 600, "2026-10-24T12:00:00Z", None, None), r#""forks_count": 12"#),
+    ]);
+    let (conn, mut fetcher, _server) = setup(routes(&month, EMPTY, EMPTY, EMPTY, EMPTY));
+    fetcher.fetch(&conn).unwrap();
+    assert_eq!(texts(&conn, "gh_month"), ["o/real  (★ 600)"]);
+    assert_eq!(texts(&conn, "gh_rising"), ["o/real  (★ 600, ~300/day)"]);
+}
+
+#[test]
+fn a_repo_left_out_is_listed_once_and_the_list_starts_fresh_each_check() {
+    // The same fork turns up in the month search and in the hidden-gems search.
+    let junk = with_fields(repo(1, "o/junk", 90, "2026-10-20T00:00:00Z", Some("Copy"), None), r#""fork": true"#);
+    let both = list(&[junk]);
+    let (conn, mut fetcher, _server) = setup(routes(&both, EMPTY, EMPTY, &both, EMPTY));
+    fetcher.fetch(&conn).unwrap();
+    assert_eq!(skipped(&fetcher), [("o/junk".to_string(), Junk::Fork)]);
+    fetcher.fetch(&conn).unwrap();
+    assert_eq!(skipped(&fetcher).len(), 1);
+    assert!(texts(&conn, "gh_month").is_empty());
 }
