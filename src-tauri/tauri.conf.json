@@ -29,7 +29,8 @@
     "targets": ["nsis"],
     "shortDescription": "Small single-purpose wisps in your system tray",
     "resources": {
-      "../THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md"
+      "../THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md",
+      "../ui/fonts/OFL.txt": "OFL.txt"
     },
     "windows": {
       "nsis": {
