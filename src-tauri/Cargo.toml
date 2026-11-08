@@ -1,6 +1,6 @@
 [package]
 name = "wisply"
-version = "0.1.0"
+version = "0.1.1"
 publish = false
 description = "Wisply: small single-purpose wisps in your system tray"
 edition = "2021"
