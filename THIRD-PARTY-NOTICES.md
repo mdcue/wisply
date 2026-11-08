@@ -36,8 +36,8 @@ SOFTWARE.
 
 ### Font: Poppins
 
-Poppins is licensed under the SIL Open Font License 1.1. The licence text ships with the project in
-`ui/fonts/OFL.txt`.
+Poppins is licensed under the SIL Open Font License 1.1. The licence text is installed with Wisply
+as `OFL.txt`, next to this file.
 
 ## Overview of licences used by the Rust libraries
 
@@ -3746,7 +3746,7 @@ Used by:
 - idna_adapter 1.2.2
 - indexmap 2.14.2
 - lock_api 0.4.14
-- log 0.4.34
+- log 0.4.35
 - markup5ever 0.39.0
 - mime 0.3.17
 - muda 0.20.0
@@ -5947,7 +5947,7 @@ Used by:
 - dtoa 1.0.11
 - dunce 1.0.5
 - dyn-clone 1.0.20
-- erased-serde 0.4.10
+- erased-serde 0.4.11
 - fdeflate 0.3.7
 - ident_case 1.0.1
 - image 0.25.10
@@ -6321,7 +6321,7 @@ limitations under the License.
 
 Used by:
 - alloc-no-stdlib 3.0.0
-- brotli 9.0.0
+- brotli 9.1.0
 
 ```
 Copyright (c) 2016 Dropbox, Inc.
@@ -7304,7 +7304,7 @@ fn is_meta_character(c: char) -> bool {
 ### MIT License
 
 Used by:
-- brotli 9.0.0
+- brotli 9.1.0
 
 ```
 Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors.
@@ -7360,8 +7360,8 @@ THE SOFTWARE.
 ### MIT License
 
 Used by:
-- libsqlite3-sys 0.39.0
-- rusqlite 0.41.0
+- libsqlite3-sys 0.39.1
+- rusqlite 0.41.1
 
 ```
 Copyright (c) 2014 The rusqlite developers
@@ -7812,7 +7812,7 @@ developed by Chen Jiaju, licensed under the MIT License and the Apache License 2
 ### MIT License
 
 Used by:
-- brotli-decompressor 6.0.1
+- brotli-decompressor 6.2.0
 - dpi 0.1.2
 - webview2-com-macros 0.8.1
 - webview2-com-sys 0.39.1

@@ -2,6 +2,7 @@
 //! GitHub's search. One search is made per channel (the month search also feeds "Rising"), with a
 //! short pause between them so GitHub isn't hit in a burst.
 
+use std::cell::Cell;
 use std::thread;
 use std::time::Duration;
 
@@ -11,9 +12,9 @@ use serde_json::Value;
 use url::Url;
 
 use super::{register, ChannelDef, WispDef};
-use crate::http::Client;
+use crate::http::{Client, Reply};
 use crate::safe::{clean_text, link_on_hosts};
-use crate::scheduler::Fetcher;
+use crate::scheduler::{unix_now, Fetcher};
 use crate::store::{self, NewItem};
 
 pub const DEF: WispDef = WispDef {
@@ -47,6 +48,40 @@ const GEM_MIN_STARS: i64 = 50;
 const GEM_MAX_STARS: i64 = 500;
 /// A placeholder until the Hub has a language picker.
 const LANGUAGES: [&str; 1] = ["python"];
+/// Repos asked for in the searches that keep only `TOP_N`, so that after junk is left out there
+/// are still enough good ones to fill the channel.
+const SEARCH_POOL: usize = 10;
+/// A repo gaining stars faster than this (stars a day, a new repo counting as one day old at
+/// least) while nobody has forked it looks like bought stars, not a real crowd.
+const STAR_FARM_PER_DAY: f64 = 500.0;
+/// Wording that marks a repo as bait on its own: pirated software, game cheats and "free money"
+/// generators. Compared with whole words only, in lower case, so "cheat sheet" is not caught.
+const JUNK_PHRASES: &[&str] = &[
+    "free robux",
+    "robux generator",
+    "free vbucks",
+    "vbucks generator",
+    "hack tool",
+    "hacktool",
+    "free generator",
+    "free account generator",
+    "money generator",
+    "game hack",
+    "game cheat",
+    "cheat menu",
+    "cheat loader",
+    "aimbot",
+    "wallhack",
+    "warez",
+    "nulled",
+    "free airdrop",
+    "airdrop claim",
+    "airdrop bot",
+];
+/// Words that only count as junk together with a giveaway word in the same place ("Photoshop
+/// Crack Free Download"), because alone they are often honest ("crack detection", "ssh-keygen").
+const CRACK_WORDS: &[&str] = &["crack", "cracked", "keygen"];
+const GIVEAWAY_WORDS: &[&str] = &["free", "download", "full", "activation", "serial", "license", "torrent", "patch"];
 
 pub fn register_wisp(conn: &Connection) -> crate::Result<()> {
     register(conn, &DEF)
@@ -69,10 +104,17 @@ struct Repo {
     created_at: Option<DateTime<Utc>>,
     language: Option<String>,
     description: Option<String>,
+    /// How many times it was forked, when GitHub says. `None` means unknown, never "zero".
+    forks: Option<i64>,
+    fork: bool,
+    archived: bool,
+    disabled: bool,
+    topics: Vec<String>,
 }
 
 fn parse_repo(value: &Value) -> Option<Repo> {
     let text = |name: &str| value.get(name).and_then(Value::as_str).map(str::to_string);
+    let flag = |name: &str| value.get(name).and_then(Value::as_bool).unwrap_or(false);
     Some(Repo {
         id: value.get("id")?.as_i64()?.to_string(),
         full_name: text("full_name").filter(|n| !n.trim().is_empty())?,
@@ -83,7 +125,92 @@ fn parse_repo(value: &Value) -> Option<Repo> {
             .map(|t| t.with_timezone(&Utc)),
         language: text("language").filter(|l| !l.trim().is_empty()),
         description: text("description"),
+        forks: value.get("forks_count").and_then(Value::as_i64),
+        fork: flag("fork"),
+        archived: flag("archived"),
+        disabled: flag("disabled"),
+        topics: value
+            .get("topics")
+            .and_then(Value::as_array)
+            .map(|list| list.iter().filter_map(Value::as_str).map(str::to_string).collect())
+            .unwrap_or_default(),
     })
+}
+
+/// Why a repo was left out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Junk {
+    Fork,
+    Archived,
+    Disabled,
+    /// Pirate, cheat or "free money" wording in its name, description or topics.
+    BaitWords,
+    /// Many stars very fast and nobody has forked it.
+    StarFarm,
+}
+
+impl Junk {
+    /// A few plain words for the log.
+    pub fn label(self) -> &'static str {
+        match self {
+            Junk::Fork => "a fork",
+            Junk::Archived => "archived",
+            Junk::Disabled => "disabled",
+            Junk::BaitWords => "bait wording",
+            Junk::StarFarm => "many stars but no forks",
+        }
+    }
+}
+
+/// A repo that was left out during a check, and why.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Skipped {
+    pub name: String,
+    pub why: Junk,
+}
+
+/// Lower-cases `text` and cuts it into whole words (letters and digits), so "Crack-Tool_v2"
+/// becomes `crack`, `tool`, `v2`.
+fn words_of(text: &str) -> Vec<String> {
+    text.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).map(str::to_lowercase).collect()
+}
+
+/// Is the phrase (words separated by single spaces) in the list of words, whole words in a row?
+fn contains_phrase(words: &[String], phrase: &str) -> bool {
+    let wanted: Vec<&str> = phrase.split(' ').collect();
+    !wanted.is_empty() && words.windows(wanted.len()).any(|run| run.iter().zip(&wanted).all(|(a, b)| a == b))
+}
+
+/// Does this one piece of text (a name, a description, all the topics) read like bait?
+fn text_is_bait(text: &str) -> bool {
+    let words = words_of(text);
+    JUNK_PHRASES.iter().any(|phrase| contains_phrase(&words, phrase))
+        || (words.iter().any(|w| CRACK_WORDS.contains(&w.as_str()))
+            && words.iter().any(|w| GIVEAWAY_WORDS.contains(&w.as_str())))
+}
+
+fn has_bait_words(repo: &Repo) -> bool {
+    text_is_bait(&repo.full_name)
+        || repo.description.as_deref().is_some_and(text_is_bait)
+        || (!repo.topics.is_empty() && text_is_bait(&repo.topics.join(" ")))
+}
+
+/// The reason to leave a repo out, or `None` to keep it. Only fields GitHub already sends with
+/// the search are used, so this costs no extra requests.
+fn junk_reason(repo: &Repo, now: DateTime<Utc>) -> Option<Junk> {
+    if repo.fork {
+        Some(Junk::Fork)
+    } else if repo.archived {
+        Some(Junk::Archived)
+    } else if repo.disabled {
+        Some(Junk::Disabled)
+    } else if has_bait_words(repo) {
+        Some(Junk::BaitWords)
+    } else if repo.forks == Some(0) && stars_per_day(repo, now) >= STAR_FARM_PER_DAY {
+        Some(Junk::StarFarm)
+    } else {
+        None
+    }
 }
 
 pub struct GithubFetcher {
@@ -93,6 +220,11 @@ pub struct GithubFetcher {
     /// `None` means "the real time"; tests set a fixed one.
     now: Option<DateTime<Utc>>,
     languages: Vec<String>,
+    /// The repos left out during the latest check (each once), for the log and for tests.
+    skipped: Vec<Skipped>,
+    /// How long GitHub asked us to wait after the latest refusal (seconds), if it said. Cleared
+    /// at the start of every check.
+    wait: Cell<Option<i64>>,
 }
 
 impl GithubFetcher {
@@ -103,6 +235,8 @@ impl GithubFetcher {
             gap: REQUEST_GAP,
             now: None,
             languages: LANGUAGES.iter().map(|l| l.to_string()).collect(),
+            skipped: Vec::new(),
+            wait: Cell::new(None),
         }
     }
 
@@ -127,6 +261,40 @@ impl GithubFetcher {
         self.now.unwrap_or_else(Utc::now)
     }
 
+    /// The repos left out during the latest check, each once, with the reason.
+    pub fn skipped(&self) -> &[Skipped] {
+        &self.skipped
+    }
+
+    /// Writes what was left out to the log: one summary line, then one line per repository.
+    fn log_skipped(&self) {
+        if self.skipped.is_empty() {
+            return;
+        }
+        log::info!("GitHub: left out {} junk repositories this check", self.skipped.len());
+        for item in &self.skipped {
+            log::info!("GitHub: left out {} ({})", item.name, item.why.label());
+        }
+    }
+
+    /// Drops the junk from one search's repos and remembers each one dropped (once per check,
+    /// even if several searches found it).
+    fn screen(&mut self, repos: Vec<Repo>) -> Vec<Repo> {
+        let now = self.now();
+        let mut kept = Vec::with_capacity(repos.len());
+        for repo in repos {
+            match junk_reason(&repo, now) {
+                None => kept.push(repo),
+                Some(why) => {
+                    if !self.skipped.iter().any(|s| s.name == repo.full_name) {
+                        self.skipped.push(Skipped { name: repo.full_name.clone(), why });
+                    }
+                }
+            }
+        }
+        kept
+    }
+
     /// The date `days` days ago, as GitHub's search wants it (`2026-10-25`).
     fn since(&self, days: i64) -> String {
         (self.now() - Days::days(days)).date_naive().format("%Y-%m-%d").to_string()
@@ -135,6 +303,13 @@ impl GithubFetcher {
     fn pause(&self) {
         if !self.gap.is_zero() {
             thread::sleep(self.gap);
+        }
+    }
+
+    /// Remembers what GitHub said about waiting, if this reply is a refusal or an error.
+    fn note_wait(&self, reply: &Reply) {
+        if !reply.is_success() {
+            self.wait.set(reply.wait_seconds(unix_now()));
         }
     }
 
@@ -149,6 +324,7 @@ impl GithubFetcher {
         let reply = self
             .client
             .get(&url, &[("Accept", "application/vnd.github+json"), ("X-GitHub-Api-Version", "2022-11-28")])?;
+        self.note_wait(&reply);
         if reply.status == 403 || reply.status == 429 {
             let reset = reply.header("x-ratelimit-reset").unwrap_or("unknown");
             return Err(format!(
@@ -181,11 +357,18 @@ impl Fetcher for GithubFetcher {
         DEF.id
     }
 
+    fn retry_wait_seconds(&self) -> Option<i64> {
+        self.wait.get()
+    }
+
     fn fetch(&mut self, conn: &Connection) -> Result<(), String> {
         let now = self.now();
+        self.skipped.clear();
+        self.wait.set(None);
 
         // One search feeds both "this month" and "rising".
         let month = self.search(&format!("created:>={}", self.since(RISING_DAYS)), 100)?;
+        let month = self.screen(month);
         save(conn, "gh_month", &month[..month.len().min(TOP_N)], None)?;
         let mut rising: Vec<&Repo> = month.iter().collect();
         rising.sort_by(|a, b| stars_per_day(b, now).total_cmp(&stars_per_day(a, now)));
@@ -194,12 +377,14 @@ impl Fetcher for GithubFetcher {
         save(conn, "gh_rising", &rising, Some(&per_day))?;
 
         self.pause();
-        let week = self.search(&format!("created:>={}", self.since(7)), TOP_N)?;
-        save(conn, "gh_week", &week, None)?;
+        let week = self.search(&format!("created:>={}", self.since(7)), SEARCH_POOL)?;
+        let week = self.screen(week);
+        save(conn, "gh_week", &week[..week.len().min(TOP_N)], None)?;
 
         self.pause();
-        let day = self.search(&format!("created:>={}", self.since(1)), TOP_N)?;
-        save(conn, "gh_day", &day, None)?;
+        let day = self.search(&format!("created:>={}", self.since(1)), SEARCH_POOL)?;
+        let day = self.screen(day);
+        save(conn, "gh_day", &day[..day.len().min(TOP_N)], None)?;
 
         self.pause();
         let gems = self.search(
@@ -209,6 +394,7 @@ impl Fetcher for GithubFetcher {
             ),
             30,
         )?;
+        let gems = self.screen(gems);
         let gems: Vec<Repo> = gems
             .into_iter()
             .filter(|r| r.description.as_deref().is_some_and(|d| !d.is_empty()))
@@ -220,7 +406,8 @@ impl Fetcher for GithubFetcher {
         for language in self.languages.clone() {
             self.pause();
             let query = format!("created:>={} language:\"{}\"", self.since(7), language.replace('"', ""));
-            for repo in self.search(&query, TOP_N)? {
+            let in_language = self.search(&query, SEARCH_POOL)?;
+            for repo in self.screen(in_language) {
                 // The same repo found twice counts once (the later copy replaces the earlier).
                 match found.iter().position(|f| f.id == repo.id) {
                     Some(at) => found[at] = repo,
@@ -231,6 +418,7 @@ impl Fetcher for GithubFetcher {
         found.sort_by_key(|repo| std::cmp::Reverse(repo.stars));
         found.truncate(TOP_N);
         save(conn, "gh_langs", &found, None)?;
+        self.log_skipped();
         Ok(())
     }
 }

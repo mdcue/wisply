@@ -4,15 +4,17 @@
 //! page already reads.
 //!
 //! Each call opens the database for a moment (cheap, and it means calls from any thread are safe).
+use std::collections::HashMap;
 use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use chrono::{Local, NaiveDateTime, TimeZone};
 use rusqlite::Connection;
 use serde::Serialize;
 
-use crate::scheduler::Fetcher;
+use crate::scheduler::{unix_now, Fetcher, MAX_SERVER_WAIT_SECONDS};
 use crate::wisps::companion::{self, Feeling, Idea, NoteError, Reminder};
 use crate::wisps::companion_voice as voice;
 use crate::wisps::{deals, github};
@@ -140,11 +142,15 @@ pub struct FetchReport {
 pub struct Hub {
     dir: PathBuf,
     clock: Box<dyn Fn() -> NaiveDateTime + Send + Sync>,
+    /// Wisp id -> the time (unix seconds) before which a source asked not to be checked again.
+    /// Only filled when a source really said so (a rate limit); a plain failure doesn't block the
+    /// "check now" button.
+    waits: Mutex<HashMap<String, i64>>,
 }
 
 impl Hub {
     pub fn new(data_dir: &Path) -> Hub {
-        Hub { dir: data_dir.to_path_buf(), clock: Box::new(|| Local::now().naive_local()) }
+        Hub { dir: data_dir.to_path_buf(), clock: Box::new(|| Local::now().naive_local()), waits: Mutex::new(HashMap::new()) }
     }
 
     /// With your own idea of "now" (local wall-clock time), for tests.
@@ -355,16 +361,29 @@ impl Hub {
     pub fn fetch_with(&self, fetcher: &mut dyn Fetcher) -> Result<FetchReport> {
         let conn = self.conn()?;
         let id = fetcher.wisp_id().to_string();
+        let now = unix_now();
+        // A source that asked to be left alone is not asked again until the time it named.
+        let blocked_until = self.waits.lock().ok().and_then(|waits| waits.get(&id).copied());
+        if let Some(until) = blocked_until.filter(|until| *until > now) {
+            log::info!("[{id}] check skipped: the source asked us to wait another {} minutes", (until - now + 59) / 60);
+            return Ok(FetchReport { wisp_id: id, ok: false, new_items: 0 });
+        }
         let before = store::wisp_unread(&conn, &id)?;
         let result = catch_unwind(AssertUnwindSafe(|| fetcher.fetch(&conn)))
             .unwrap_or_else(|_| Err("the check crashed".to_string()));
         let ok = match result {
             Ok(()) => {
+                if let Ok(mut waits) = self.waits.lock() {
+                    waits.remove(&id);
+                }
                 store::mark_fetched(&conn, &id)?;
                 true
             }
             Err(message) => {
                 log::warn!("[{id}] check failed: {message}");
+                if let (Some(asked), Ok(mut waits)) = (fetcher.retry_wait_seconds(), self.waits.lock()) {
+                    waits.insert(id.clone(), now + asked.clamp(0, MAX_SERVER_WAIT_SECONDS));
+                }
                 false
             }
         };

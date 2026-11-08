@@ -212,3 +212,143 @@ fn the_thread_runs_startup_checks_then_ticks_and_stops_on_request() {
     assert!(count(&timed_calls) >= 1);
     assert!(looks.load(Ordering::SeqCst) >= 2);
 }
+/// Always fails, and tells the scheduler how long the source asked it to wait.
+struct Asks {
+    calls: Arc<AtomicUsize>,
+    wait: Option<i64>,
+}
+
+impl Fetcher for Asks {
+    fn wisp_id(&self) -> &str {
+        "w"
+    }
+    fn fetch(&mut self, _conn: &Connection) -> Result<(), String> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Err("rate limited".to_string())
+    }
+    fn retry_wait_seconds(&self) -> Option<i64> {
+        self.wait
+    }
+}
+
+fn asks(wait: Option<i64>) -> (Box<dyn Fetcher>, Arc<AtomicUsize>) {
+    let calls = Arc::new(AtomicUsize::new(0));
+    (Box::new(Asks { calls: calls.clone(), wait }), calls)
+}
+
+/// Fails on the checks marked `false` in the list, works on `true` (and on every check after the list).
+struct Pattern {
+    calls: Arc<AtomicUsize>,
+    results: Vec<bool>,
+}
+
+impl Fetcher for Pattern {
+    fn wisp_id(&self) -> &str {
+        "w"
+    }
+    fn fetch(&mut self, _conn: &Connection) -> Result<(), String> {
+        let number = self.calls.fetch_add(1, Ordering::SeqCst);
+        if self.results.get(number).copied().unwrap_or(true) {
+            Ok(())
+        } else {
+            Err("no internet".to_string())
+        }
+    }
+}
+
+#[test]
+fn the_wait_after_failures_grows_and_stops_at_an_hour() {
+    let waits: Vec<i64> = (0..=8).map(scheduler::backoff_seconds).collect();
+    assert_eq!(waits, [300, 300, 600, 1200, 2400, 3600, 3600, 3600, 3600]);
+}
+
+#[test]
+fn a_wisp_that_keeps_failing_waits_longer_each_time() {
+    let conn = setup(900, Some(T0_TEXT));
+    let (f, calls) = fake("w", Behaviour::Fails);
+    let mut s = Scheduler::new(vec![f]);
+    let t1 = T0 + 900;
+    s.tick(&conn, t1).unwrap(); // first failure: 5 minutes
+    assert_eq!(count(&calls), 1);
+    let t2 = t1 + 300;
+    s.tick(&conn, t2 - 1).unwrap();
+    assert_eq!(count(&calls), 1);
+    s.tick(&conn, t2).unwrap(); // second failure: 10 minutes
+    assert_eq!(count(&calls), 2);
+    s.tick(&conn, t2 + 599).unwrap();
+    assert_eq!(count(&calls), 2);
+    let t3 = t2 + 600;
+    s.tick(&conn, t3).unwrap(); // third failure: 20 minutes
+    assert_eq!(count(&calls), 3);
+    s.tick(&conn, t3 + 1199).unwrap();
+    assert_eq!(count(&calls), 3);
+    s.tick(&conn, t3 + 1200).unwrap();
+    assert_eq!(count(&calls), 4);
+}
+
+#[test]
+fn one_success_starts_the_waits_over_from_five_minutes() {
+    let conn = setup(900, None);
+    let calls = Arc::new(AtomicUsize::new(0));
+    let pattern = Pattern { calls: calls.clone(), results: vec![false, false, true, false] };
+    let mut s = Scheduler::new(vec![Box::new(pattern)]);
+    let t0 = scheduler::unix_now();
+    s.tick(&conn, t0).unwrap(); // fails: waits 5 minutes
+    s.tick(&conn, t0 + 300).unwrap(); // fails: waits 10 minutes
+    s.tick(&conn, t0 + 900).unwrap(); // works
+    assert_eq!(count(&calls), 3);
+    let t4 = t0 + 900 + 1000;
+    s.tick(&conn, t4).unwrap(); // fails again, but as a first failure: only 5 minutes
+    assert_eq!(count(&calls), 4);
+    s.tick(&conn, t4 + 299).unwrap();
+    assert_eq!(count(&calls), 4);
+    s.tick(&conn, t4 + 300).unwrap();
+    assert_eq!(count(&calls), 5);
+}
+
+#[test]
+fn a_source_that_asks_for_longer_is_given_longer() {
+    let conn = setup(900, None);
+    let (f, calls) = asks(Some(3000));
+    let mut s = Scheduler::new(vec![f]);
+    s.tick(&conn, T0).unwrap();
+    assert_eq!(count(&calls), 1);
+    s.tick(&conn, T0 + 2999).unwrap();
+    assert_eq!(count(&calls), 1);
+    s.tick(&conn, T0 + 3000).unwrap();
+    assert_eq!(count(&calls), 2);
+}
+
+#[test]
+fn a_source_asking_for_less_than_our_own_wait_does_not_shorten_it() {
+    let conn = setup(900, None);
+    let (f, calls) = asks(Some(10));
+    let mut s = Scheduler::new(vec![f]);
+    s.tick(&conn, T0).unwrap();
+    s.tick(&conn, T0 + 299).unwrap();
+    assert_eq!(count(&calls), 1);
+    s.tick(&conn, T0 + 300).unwrap();
+    assert_eq!(count(&calls), 2);
+}
+
+#[test]
+fn a_silly_long_ask_is_cut_to_two_hours() {
+    let conn = setup(900, None);
+    let (f, calls) = asks(Some(10 * 86_400));
+    let mut s = Scheduler::new(vec![f]);
+    s.tick(&conn, T0).unwrap();
+    s.tick(&conn, T0 + scheduler::MAX_SERVER_WAIT_SECONDS - 1).unwrap();
+    assert_eq!(count(&calls), 1);
+    s.tick(&conn, T0 + scheduler::MAX_SERVER_WAIT_SECONDS).unwrap();
+    assert_eq!(count(&calls), 2);
+}
+
+#[test]
+fn a_negative_ask_counts_as_no_ask() {
+    let conn = setup(900, None);
+    let (f, calls) = asks(Some(-50));
+    let mut s = Scheduler::new(vec![f]);
+    s.tick(&conn, T0).unwrap();
+    s.tick(&conn, T0 + 300).unwrap();
+    assert_eq!(count(&calls), 2);
+}
