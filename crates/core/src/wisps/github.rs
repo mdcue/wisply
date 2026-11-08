@@ -2,6 +2,7 @@
 //! GitHub's search. One search is made per channel (the month search also feeds "Rising"), with a
 //! short pause between them so GitHub isn't hit in a burst.
 
+use std::cell::Cell;
 use std::thread;
 use std::time::Duration;
 
@@ -11,9 +12,9 @@ use serde_json::Value;
 use url::Url;
 
 use super::{register, ChannelDef, WispDef};
-use crate::http::Client;
+use crate::http::{Client, Reply};
 use crate::safe::{clean_text, link_on_hosts};
-use crate::scheduler::Fetcher;
+use crate::scheduler::{unix_now, Fetcher};
 use crate::store::{self, NewItem};
 
 pub const DEF: WispDef = WispDef {
@@ -221,6 +222,9 @@ pub struct GithubFetcher {
     languages: Vec<String>,
     /// The repos left out during the latest check (each once), for the log and for tests.
     skipped: Vec<Skipped>,
+    /// How long GitHub asked us to wait after the latest refusal (seconds), if it said. Cleared
+    /// at the start of every check.
+    wait: Cell<Option<i64>>,
 }
 
 impl GithubFetcher {
@@ -232,6 +236,7 @@ impl GithubFetcher {
             now: None,
             languages: LANGUAGES.iter().map(|l| l.to_string()).collect(),
             skipped: Vec::new(),
+            wait: Cell::new(None),
         }
     }
 
@@ -301,6 +306,13 @@ impl GithubFetcher {
         }
     }
 
+    /// Remembers what GitHub said about waiting, if this reply is a refusal or an error.
+    fn note_wait(&self, reply: &Reply) {
+        if !reply.is_success() {
+            self.wait.set(reply.wait_seconds(unix_now()));
+        }
+    }
+
     /// One search, best-starred first. Returns the repos it found.
     fn search(&self, query: &str, per_page: usize) -> Result<Vec<Repo>, String> {
         let per_page = per_page.to_string();
@@ -312,6 +324,7 @@ impl GithubFetcher {
         let reply = self
             .client
             .get(&url, &[("Accept", "application/vnd.github+json"), ("X-GitHub-Api-Version", "2022-11-28")])?;
+        self.note_wait(&reply);
         if reply.status == 403 || reply.status == 429 {
             let reset = reply.header("x-ratelimit-reset").unwrap_or("unknown");
             return Err(format!(
@@ -344,9 +357,14 @@ impl Fetcher for GithubFetcher {
         DEF.id
     }
 
+    fn retry_wait_seconds(&self) -> Option<i64> {
+        self.wait.get()
+    }
+
     fn fetch(&mut self, conn: &Connection) -> Result<(), String> {
         let now = self.now();
         self.skipped.clear();
+        self.wait.set(None);
 
         // One search feeds both "this month" and "rising".
         let month = self.search(&format!("created:>={}", self.since(RISING_DAYS)), 100)?;

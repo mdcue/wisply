@@ -1,5 +1,6 @@
 //! Game Deals ("ware-Weaver"): tracks game deals and free games from CheapShark.
 
+use std::cell::Cell;
 use std::collections::HashMap;
 
 use rusqlite::Connection;
@@ -9,7 +10,7 @@ use url::Url;
 use super::{register, ChannelDef, WispDef};
 use crate::http::Client;
 use crate::safe::{clean_text, MAX_ITEM_TEXT};
-use crate::scheduler::Fetcher;
+use crate::scheduler::{unix_now, Fetcher};
 use crate::store::{self, NewItem};
 
 pub const DEF: WispDef = WispDef {
@@ -39,16 +40,19 @@ pub fn register_wisp(conn: &Connection) -> crate::Result<()> {
 pub struct DealsFetcher {
     client: Client,
     base: String,
+    /// How long CheapShark asked us to wait after the latest refusal (seconds), if it said.
+    /// Cleared at the start of every check.
+    wait: Cell<Option<i64>>,
 }
 
 impl DealsFetcher {
     pub fn new() -> DealsFetcher {
-        DealsFetcher { client: Client::strict(&[HOST]), base: API.to_string() }
+        DealsFetcher { client: Client::strict(&[HOST]), base: API.to_string(), wait: Cell::new(None) }
     }
 
     /// For tests: a client and a base address of your own (a fake website on this computer).
     pub fn with_client(client: Client, base: &str) -> DealsFetcher {
-        DealsFetcher { client, base: base.trim_end_matches('/').to_string() }
+        DealsFetcher { client, base: base.trim_end_matches('/').to_string(), wait: Cell::new(None) }
     }
 
     /// Fetches one address and returns its JSON.
@@ -57,6 +61,7 @@ impl DealsFetcher {
             .map_err(|e| format!("bad address: {e}"))?;
         let reply = self.client.get(&url, &[])?;
         if !reply.is_success() {
+            self.wait.set(reply.wait_seconds(unix_now()));
             return Err(format!("CheapShark ({what}) answered with status {}", reply.status));
         }
         serde_json::from_str(&reply.body).map_err(|_| format!("CheapShark ({what}) sent something that isn't JSON"))
@@ -74,7 +79,12 @@ impl Fetcher for DealsFetcher {
         DEF.id
     }
 
+    fn retry_wait_seconds(&self) -> Option<i64> {
+        self.wait.get()
+    }
+
     fn fetch(&mut self, conn: &Connection) -> Result<(), String> {
+        self.wait.set(None);
         let stores = store_names(&self.get_json("stores", &[], "stores")?)?;
         let deals = self.get_json("deals", &[("upperPrice", UPPER_PRICE_FOR_DEALS)], "deals")?;
         save_deals(conn, &deals, &stores)?;

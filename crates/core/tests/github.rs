@@ -461,3 +461,36 @@ fn a_repo_left_out_is_listed_once_and_the_list_starts_fresh_each_check() {
     assert_eq!(skipped(&fetcher).len(), 1);
     assert!(texts(&conn, "gh_month").is_empty());
 }
+
+#[test]
+fn an_empty_quota_tells_the_scheduler_to_wait_until_the_reset() {
+    let reset = wisply_core::scheduler::unix_now() + 600;
+    let mut refused = status("/search/repositories", 403, r#"{"message": "rate limit"}"#);
+    refused.headers.push(("x-ratelimit-remaining", "0".to_string()));
+    refused.headers.push(("x-ratelimit-reset", reset.to_string()));
+    let (conn, mut fetcher, _server) = setup(vec![refused]);
+    assert_eq!(fetcher.retry_wait_seconds(), None);
+    assert!(fetcher.fetch(&conn).is_err());
+    let wait = fetcher.retry_wait_seconds().expect("GitHub said when the limit resets");
+    assert!((595..=600).contains(&wait), "got {wait}");
+}
+
+#[test]
+fn retry_after_is_used_when_github_sends_it() {
+    let mut refused = status("/search/repositories", 429, "slow down");
+    refused.headers.push(("Retry-After", "90".to_string()));
+    let (conn, mut fetcher, _server) = setup(vec![refused]);
+    assert!(fetcher.fetch(&conn).is_err());
+    assert_eq!(fetcher.retry_wait_seconds(), Some(90));
+}
+
+#[test]
+fn a_refusal_with_no_hint_and_an_ordinary_error_ask_for_no_particular_wait() {
+    let (conn, mut fetcher, _server) = setup(vec![status("/search/repositories", 403, "no")]);
+    assert!(fetcher.fetch(&conn).is_err());
+    assert_eq!(fetcher.retry_wait_seconds(), None);
+
+    let (conn, mut fetcher, _server) = setup(vec![status("/search/repositories", 500, "oops")]);
+    assert!(fetcher.fetch(&conn).is_err());
+    assert_eq!(fetcher.retry_wait_seconds(), None);
+}

@@ -300,3 +300,33 @@ fn the_scheduler_runs_the_wisp_and_a_failure_puts_it_on_cooldown() {
     assert!(matches!(scheduler.tick(&conn, now).unwrap()[0].outcome, Outcome::Failed(_)));
     assert!(scheduler.tick(&conn, now + 60).unwrap().is_empty());
 }
+#[test]
+fn a_rate_limit_reply_tells_the_scheduler_how_long_to_wait() {
+    let mut limited = status("/stores", 429, "slow down");
+    limited.headers.push(("Retry-After", "900".to_string()));
+    let (conn, mut fetcher, _server) = setup(vec![limited]);
+    assert_eq!(fetcher.retry_wait_seconds(), None);
+    assert!(fetcher.fetch(&conn).unwrap_err().contains("429"));
+    assert_eq!(fetcher.retry_wait_seconds(), Some(900));
+}
+
+#[test]
+fn an_error_with_no_hint_asks_for_no_particular_wait() {
+    let (conn, mut fetcher, _server) = setup(vec![status("/stores", 503, "down")]);
+    assert!(fetcher.fetch(&conn).is_err());
+    assert_eq!(fetcher.retry_wait_seconds(), None);
+}
+
+#[test]
+fn a_rate_limited_wisp_is_left_alone_for_as_long_as_it_asked() {
+    let mut limited = status("/stores", 429, "slow down");
+    limited.headers.push(("Retry-After", "3000".to_string()));
+    let (conn, fetcher, _server) = setup(vec![limited]);
+    let mut scheduler = Scheduler::new(vec![Box::new(fetcher)]);
+    let now = wisply_core::scheduler::unix_now();
+    assert!(matches!(scheduler.tick(&conn, now).unwrap()[0].outcome, Outcome::Failed(_)));
+    // The ordinary five minutes would be over, but CheapShark asked for fifty.
+    assert!(scheduler.tick(&conn, now + 600).unwrap().is_empty());
+    assert!(scheduler.tick(&conn, now + 2999).unwrap().is_empty());
+    assert!(!scheduler.tick(&conn, now + 3000).unwrap().is_empty());
+}

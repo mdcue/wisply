@@ -5,7 +5,10 @@
 //! * a wisp is due once its check interval has passed (a few seconds early counts, so a
 //!   one-minute interval is never missed by a hair);
 //! * an interval of 0 means "only when the app starts";
-//! * a failed check never stops the others, and that wisp waits 5 minutes before trying again.
+//! * a failed check never stops the others, and that wisp waits 5 minutes before trying again;
+//! * a wisp that keeps failing waits longer each time (5, 10, 20, 40 minutes, then an hour) and
+//!   starts again from 5 minutes after one success;
+//! * if the source said how long to wait (a rate limit), the wisp waits at least that long.
 //!
 //! The scheduler doesn't know how to fetch anything. Each wisp provides a `Fetcher`, which keeps
 //! this file free of the internet, so it can be tested completely.
@@ -23,6 +26,11 @@ use crate::{schema, store, Result};
 
 pub const TICK: Duration = Duration::from_secs(60);
 pub const RETRY_AFTER_FAILURE_SECONDS: i64 = 300;
+/// The longest the growing wait after repeated failures can get.
+pub const MAX_BACKOFF_SECONDS: i64 = 3600;
+/// The longest a source can make a wisp wait just by asking (so a wrong or hostile header can't
+/// park a wisp for days).
+pub const MAX_SERVER_WAIT_SECONDS: i64 = 7200;
 pub const DUE_TOLERANCE_SECONDS: i64 = 5;
 /// Wisps checked more often than this don't write a log line for every check.
 pub const QUIET_BELOW_SECONDS: i64 = 300;
@@ -33,6 +41,17 @@ pub trait Fetcher: Send {
     /// Check the source and store new items (with `store::add_item`). An `Err` message is logged
     /// and puts the wisp on a short cooldown.
     fn fetch(&mut self, conn: &Connection) -> std::result::Result<(), String>;
+    /// After a failed `fetch`: how many seconds the source asked us to wait, if it said (for
+    /// example with a rate-limit reply). Most wisps never say, which is what this default means.
+    fn retry_wait_seconds(&self) -> Option<i64> {
+        None
+    }
+}
+
+/// How long to wait after the `failures`-th failure in a row: 5, 10, 20, 40 minutes, then an hour.
+pub fn backoff_seconds(failures: u32) -> i64 {
+    let doublings = failures.saturating_sub(1).min(6);
+    (RETRY_AFTER_FAILURE_SECONDS * 2_i64.pow(doublings)).min(MAX_BACKOFF_SECONDS)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -52,6 +71,8 @@ pub struct Scheduler {
     fetchers: Vec<Box<dyn Fetcher>>,
     /// Wisp id -> the time (unix seconds) before which it must not be tried again.
     retry_not_before: HashMap<String, i64>,
+    /// Wisp id -> how many checks in a row have failed.
+    failures: HashMap<String, u32>,
 }
 
 /// The current time as unix seconds.
@@ -61,7 +82,7 @@ pub fn unix_now() -> i64 {
 
 impl Scheduler {
     pub fn new(fetchers: Vec<Box<dyn Fetcher>>) -> Scheduler {
-        Scheduler { fetchers, retry_not_before: HashMap::new() }
+        Scheduler { fetchers, retry_not_before: HashMap::new(), failures: HashMap::new() }
     }
 
     /// One look at every wisp. Runs the checks that are due and says what happened.
@@ -111,15 +132,17 @@ impl Scheduler {
         match result {
             Ok(()) => {
                 self.retry_not_before.remove(&id);
+                self.failures.remove(&id);
                 store::mark_fetched(conn, &id)?;
                 Ok(Fetch { wisp_id: id, outcome: Outcome::Fetched })
             }
             Err(message) => {
-                log::warn!(
-                    "[{id}] fetch failed, will retry in {} minutes: {message}",
-                    RETRY_AFTER_FAILURE_SECONDS / 60
-                );
-                self.retry_not_before.insert(id.clone(), now + RETRY_AFTER_FAILURE_SECONDS);
+                let streak = self.failures.entry(id.clone()).or_insert(0);
+                *streak += 1;
+                let asked = fetcher.retry_wait_seconds().unwrap_or(0).clamp(0, MAX_SERVER_WAIT_SECONDS);
+                let wait = backoff_seconds(*streak).max(asked);
+                log::warn!("[{id}] fetch failed, will retry in {} minutes: {message}", (wait + 59) / 60);
+                self.retry_not_before.insert(id.clone(), now + wait);
                 Ok(Fetch { wisp_id: id, outcome: Outcome::Failed(message) })
             }
         }

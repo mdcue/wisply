@@ -10,6 +10,7 @@
 
 use std::time::Duration;
 
+use chrono::DateTime;
 use url::Url;
 
 /// Sent with every request so the sites we call can tell who is asking. Replace the contact
@@ -35,6 +36,34 @@ impl Reply {
 
     pub fn is_success(&self) -> bool {
         (200..300).contains(&self.status)
+    }
+
+    /// How many seconds the site asked us to wait before asking again, if it said so. `now` is the
+    /// current time as unix seconds.
+    ///
+    /// * `Retry-After` comes first, either as a number of seconds or as a date;
+    /// * otherwise, if `x-ratelimit-remaining` is 0, the wait runs until `x-ratelimit-reset`
+    ///   (a unix time, as GitHub sends it);
+    /// * otherwise the site said nothing, and the answer is `None`.
+    ///
+    /// A time already in the past gives 0. The number is only what the site said: whoever uses it
+    /// decides the upper limit (see `scheduler::MAX_SERVER_WAIT_SECONDS`).
+    pub fn wait_seconds(&self, now: i64) -> Option<i64> {
+        if let Some(value) = self.header("retry-after") {
+            let value = value.trim();
+            if let Ok(seconds) = value.parse::<i64>() {
+                return Some(seconds.max(0));
+            }
+            if let Ok(date) = DateTime::parse_from_rfc2822(value) {
+                return Some((date.timestamp() - now).max(0));
+            }
+        }
+        if self.header("x-ratelimit-remaining").map(str::trim) == Some("0") {
+            if let Some(reset) = self.header("x-ratelimit-reset").and_then(|v| v.trim().parse::<i64>().ok()) {
+                return Some((reset - now).max(0));
+            }
+        }
+        None
     }
 }
 
