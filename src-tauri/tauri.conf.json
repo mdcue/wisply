@@ -28,6 +28,9 @@
     "active": true,
     "targets": ["nsis"],
     "shortDescription": "Small single-purpose wisps in your system tray",
+    "resources": {
+      "../THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md"
+    },
     "windows": {
       "nsis": {
         "installMode": "currentUser"
