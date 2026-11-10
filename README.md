@@ -4,6 +4,16 @@ Small, single-purpose helpers ("wisps") that live in your Windows system tray an
 
 > Status: early alpha (v0.1). Windows only.
 
+## Why?
+
+Checking a handful of websites for game sales, trending repositories, or personal reminders is a chore, and most apps that do it for you are resource-heavy, noisy, or require setting up an external cloud account. Wisply offers a lightweight, privacy-first alternative: small local watchers that run quietly in your system tray, alerting you only when something genuinely new turns up without sending your data to any servers.
+
+## Usecases?
+
+- **Gamers & Deal Hunters:** Keeping an eye out for free game promotions and price drops via CheapShark without having to browse storefronts manually.
+- **Open-Source Enthusiasts:** Tracking daily or weekly trending GitHub repositories across custom feeds to stay on top of emerging tools and libraries.
+- **Solo Task Management:** Maintaining local ideas, daily greetings, and custom reminders with a friendly desktop companion that works offline without tracking or subscription bloat.
+
 ![Wisply's Hub and tray pop-up](docs/screenshot.png)
 
 ## Why Wisply?
